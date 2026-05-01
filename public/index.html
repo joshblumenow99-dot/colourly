@@ -1280,77 +1280,72 @@
   }
   .share-action-btn.primary svg { stroke: var(--bg); }
 
-  /* ── Onboarding ─────────────────────────────────────── */
-  .onboard {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    z-index: 250;
+  /* ── Tutorial strip + post-tutorial nudge ───────────── */
+  .tutorial-strip {
+    text-align: center;
+    padding: 14px 16px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.4;
+    transition: opacity 0.5s var(--ease);
+  }
+  .tutorial-strip .feedback-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 2px;
+  }
+  .tutorial-strip .key-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 1px 2px rgba(20, 17, 12, 0.18);
+  }
+  .tutorial-strip .key-dot.correct { background: var(--fb-correct); }
+  .tutorial-strip .key-dot.misplaced { background: var(--fb-misplaced); }
+  .tutorial-strip.fade-out { opacity: 0; pointer-events: none; }
+  .tutorial-strip.swap { animation: tutorialSwap 0.45s var(--ease); }
+  @keyframes tutorialSwap {
+    0% { opacity: 0; transform: translateY(-4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  .home-nudge {
+    margin: 0 0 18px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(78, 156, 93, 0.14), rgba(216, 168, 46, 0.10));
+    border-radius: 14px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: 40px 24px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s var(--ease);
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 0 0 1px rgba(78, 156, 93, 0.18);
+    animation: panelIn 480ms var(--ease);
   }
-  .onboard.open { opacity: 1; pointer-events: auto; }
-  .onboard-wordmark {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: 7px;
-    padding-left: 7px;
-    margin-bottom: 36px;
-  }
-  .onboard-wordmark .w { display: inline-block; }
-  .onboard-wordmark .w-1 { color: var(--c-1); }
-  .onboard-wordmark .w-2 { color: var(--c-2); }
-  .onboard-wordmark .w-3 { color: #c9a01e; }
-  .onboard-wordmark .w-4 { color: var(--c-4); }
-  .onboard-wordmark .w-5 { color: var(--c-5); }
-  .onboard-wordmark .w-6 { color: var(--c-6); }
-  .onboard-wordmark .w-7 { color: var(--c-7); }
-  .onboard-wordmark .w-8 { color: var(--c-8); }
-  .onboard-stage {
-    width: 100%;
-    max-width: 320px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    position: relative;
-  }
-  .onboard-stage .row {
-    gap: 6px;
-    transform: scale(1.05);
-  }
-  .onboard-stage .slot { --size: 44px; }
-  .onboard-stage .swatch { --size: 38px; }
-  .onboard-stage .palette { gap: 8px; margin-top: 8px; }
-  .onboard-finger {
-    position: absolute;
-    width: 36px;
-    height: 36px;
-    pointer-events: none;
-    transition: transform 0.5s var(--ease), opacity 0.3s var(--ease);
-    opacity: 0;
-    z-index: 2;
-  }
-  .onboard-finger svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.25)); }
-  .onboard-skip {
-    margin-top: 32px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    font-size: 12px;
+  .home-nudge-text {
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    background: rgba(20,17,12,0.06);
-    transition: all var(--duration-fast) var(--ease);
+    color: var(--ink);
+    letter-spacing: 0.2px;
   }
-  .onboard-skip:hover { background: rgba(20,17,12,0.10); color: var(--ink); }
+  .home-nudge-sub {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin-top: 2px;
+    letter-spacing: 0.2px;
+  }
+  .home-nudge-dismiss {
+    width: 28px; height: 28px;
+    border-radius: 999px;
+    background: rgba(20, 17, 12, 0.06);
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    transition: background var(--duration-fast) var(--ease);
+  }
+  .home-nudge-dismiss:hover { background: rgba(20, 17, 12, 0.12); color: var(--ink); }
 
   /* Dev share preview */
   .devshare {
@@ -1470,7 +1465,7 @@
       </div>
       <div class="toggle" id="toggleCB" role="switch" aria-checked="false" tabindex="0"></div>
     </div>
-    <div class="setting">
+    <div class="setting" id="settingAch">
       <div class="setting-info">
         <div class="setting-name">Achievements</div>
         <div class="setting-desc">View your unlocked badges.</div>
@@ -1522,12 +1517,6 @@
   </div>
 </div>
 
-<!-- Onboarding overlay -->
-<div class="onboard" id="onboard">
-  <div class="onboard-wordmark"><span class="w w-1">C</span><span class="w w-2">O</span><span class="w w-3">L</span><span class="w w-4">O</span><span class="w w-5">U</span><span class="w w-6">R</span><span class="w w-7">L</span><span class="w w-8">Y</span></div>
-  <div class="onboard-stage" id="onboardStage"></div>
-  <button class="onboard-skip" id="onboardSkip">Got it</button>
-</div>
 
 <script>
 'use strict';
@@ -1570,7 +1559,6 @@ const ACHIEVEMENTS = [
 // Migration helper to colourly.v1 is staged for the next data-shape change.
 const STORAGE_KEY = 'hue.v2';
 const STORAGE_KEY_NEXT = 'colourly.v1';
-const ONBOARD_KEY = 'colourly.onboarded.v1';
 
 // Puzzle epoch — Day 1 of Colourly.
 // 2026-04-30 (local) = Puzzle No. 1; 2026-05-01 = Puzzle No. 2; and so on.
@@ -1603,7 +1591,32 @@ const state = {
   // for a mode they've already solved today.
   practiceActive: false,
   practiceState: null,
+
+  // First-visit tutorial (Section 6). The tutorial uses a fixed answer,
+  // grants no XP, no streak, and does not count toward today's daily
+  // completion. tutorialDone is persisted; tutorialActive / tutorialState
+  // are session-only.
+  tutorialActive: false,
+  tutorialState: null,
+  tutorialDone: false,
+
+  // Has the player completed at least one real (non-tutorial,
+  // non-practice) puzzle? Persisted so progression UI stays visible
+  // across sessions.
+  firstRealSolveDone: false,
+
+  // Set briefly after the tutorial closes so the home view shows a
+  // one-time "Try Easy next?" nudge. Cleared once the home renders.
+  showPostTutorialNudge: false
 };
+
+// Tutorial puzzle: Beginner-mode rules (4 slots, 4 colours, 6 guesses)
+// with a fixed deterministic answer. The colour ids correspond to
+// red(1) green(4) orange(2) yellow(3) — chosen so a naive in-order guess
+// of [1,2,3,4] gives 1 correct + 3 misplaced, demonstrating both
+// feedback colours. Beginner's palette has no blue, so the spec example
+// "red-blue-yellow-green" is adapted to the 4-colour palette.
+const TUTORIAL_ANSWER = [1, 4, 2, 3];
 
 // ── Helpers ───────────────────────────────────────────────
 function coloursForMode(mode) {
@@ -1760,6 +1773,8 @@ function loadPersisted() {
     if (data.achievements && typeof data.achievements === 'object') state.achievements = data.achievements;
     if (typeof data.cb === 'boolean') state.cb = data.cb;
     if (data.history && typeof data.history === 'object') state.history = data.history;
+    if (typeof data.tutorialDone === 'boolean') state.tutorialDone = data.tutorialDone;
+    if (typeof data.firstRealSolveDone === 'boolean') state.firstRealSolveDone = data.firstRealSolveDone;
     if (data.modeStats && typeof data.modeStats === 'object') {
       MODE_ORDER.forEach(id => {
         if (data.modeStats[id]) {
@@ -1808,6 +1823,8 @@ function persist() {
       cb: state.cb,
       modeStats: state.modeStats,
       history: state.history,
+      tutorialDone: state.tutorialDone,
+      firstRealSolveDone: state.firstRealSolveDone,
       todayState: {
         puzzleNum: state.puzzleNum,
         modes: {}
@@ -1902,10 +1919,22 @@ function initTodayState() {
 
 // ── Game actions ──────────────────────────────────────────
 function getCurrent() {
+  if (state.tutorialActive) return state.tutorialState;
   if (state.practiceActive) return state.practiceState;
   return state.todayState[state.currentMode];
 }
 function getMode() { return MODES[state.currentMode]; }
+
+// True once the player has completed at least one real (non-tutorial,
+// non-practice) puzzle. Section 6 hides the XP bar, level pill, streak
+// pill, and achievement entry point until this is true so the player
+// doesn't see "Level 1 — 0/100 XP" on first visit.
+function hasHadRealSolve() {
+  if (state.firstRealSolveDone) return true;
+  // Legacy players who already played a real puzzle but never had this
+  // flag persisted should still see progression UI.
+  return MODE_ORDER.some(id => state.modeStats[id].played > 0);
+}
 
 // Next mode in the ladder (Beginner → Easy → Medium → Hard → Extreme).
 // Returns null after Extreme — Section 7 says the secondary CTA disappears.
@@ -1984,8 +2013,9 @@ function submitGuess() {
     } else if (isLast) {
       handleLoss();
     } else {
-      if (!state.practiceActive) persist();
+      if (!state.practiceActive && !state.tutorialActive) persist();
       renderGameControls();
+      updateTutorialStrip();
     }
   });
 }
@@ -2015,6 +2045,25 @@ function handleWin(rowIdx) {
     return;
   }
 
+  if (state.tutorialActive) {
+    // Tutorial solve: no XP, no streak, no daily completion. Persist
+    // tutorialDone so subsequent visits skip the tutorial. Then drop
+    // the player on the home screen with the "Try Easy next?" nudge.
+    state.tutorialDone = true;
+    persist();
+    renderGameControls();
+    renderEndState();
+    setTimeout(() => {
+      burstConfetti();
+      state.tutorialActive = false;
+      state.tutorialState = null;
+      state.selectedMode = 'easy';
+      state.showPostTutorialNudge = true;
+      goHome();
+    }, 1600);
+    return;
+  }
+
   const stats = state.modeStats[mode.id];
   stats.played++;
   stats.won++;
@@ -2034,7 +2083,17 @@ function handleWin(rowIdx) {
     state.modeStats[id].lastSolvedPuzzle === state.puzzleNum
   );
 
+  // Section 6: progression UI is hidden until the first real solve.
+  const wasFirstRealSolve = !hasHadRealSolve();
+  state.firstRealSolveDone = true;
+
   persist();
+
+  if (wasFirstRealSolve) {
+    // Re-render the topbar/XP strip so progression UI fades in.
+    renderTopbar();
+    renderXPBar();
+  }
 
   showXPPop(xpGain);
   renderXPBar();
@@ -2062,7 +2121,7 @@ function handleLoss() {
     rowEl.classList.add('shake');
   }
 
-  if (!state.practiceActive) {
+  if (!state.practiceActive && !state.tutorialActive) {
     const stats = state.modeStats[mode.id];
     stats.played++;
     stats.streak = 0;
@@ -2090,6 +2149,35 @@ function animateRowFeedback(rowIdx) {
       }, i * REVEAL_STAGGER);
     });
   });
+}
+
+// Tutorial captions per Section 6:
+//   start  → "Tap colours to fill the row, then submit."
+//   1 guess → green/amber feedback explanation
+//   2 guesses → fade out, no caption
+function tutorialCaption() {
+  if (!state.tutorialActive) return null;
+  const t = state.tutorialState;
+  const n = t.guesses.length;
+  if (n === 0) return 'Tap colours to fill the row, then submit.';
+  if (n === 1) return 'Green = right colour, right slot. Amber = right colour, wrong slot.';
+  return null;
+}
+
+function updateTutorialStrip() {
+  if (!state.tutorialActive) return;
+  const strip = document.getElementById('tutorialStrip');
+  if (!strip) return;
+  const cap = tutorialCaption();
+  if (!cap) {
+    strip.classList.add('fade-out');
+    return;
+  }
+  strip.classList.remove('fade-out');
+  strip.classList.remove('swap');
+  void strip.offsetWidth; // restart animation
+  strip.classList.add('swap');
+  strip.textContent = cap;
 }
 
 function flashRow() {
@@ -2165,6 +2253,15 @@ function renderTopbar() {
 
 function renderXPBar() {
   const strip = document.getElementById('xpStrip');
+  // Section 6: hide the entire XP strip until the player has completed
+  // a real puzzle. Level + XP progress at zero just signals "long road
+  // ahead" on first visit.
+  if (!hasHadRealSolve()) {
+    strip.style.display = 'none';
+    strip.innerHTML = '';
+    return;
+  }
+  strip.style.display = '';
   const p = xpProgress(state.totalXP);
   strip.innerHTML = `
     <div class="level-pill">Lv ${p.level}</div>
@@ -2184,16 +2281,34 @@ function renderHome() {
     ? 'No streak yet'
     : `<span class="streak-num">${maxStreak}</span>-day streak`;
   const streakIcon = hot ? '🔥' : (maxStreak > 0 ? '🔥' : '');
+  const showProgression = hasHadRealSolve();
+  const streakHTML = showProgression
+    ? `<div class="home-streak ${streakClass}">${streakIcon ? streakIcon + ' ' : ''}${streakLabel}</div>`
+    : '';
+
+  // Post-tutorial nudge — shown once after the first-visit tutorial
+  // completes. Cleared on render so it doesn't persist across reloads
+  // or repeat home renders within the same session.
+  const nudgeHTML = state.showPostTutorialNudge
+    ? `<div class="home-nudge" id="homeNudge">
+         <div>
+           <div class="home-nudge-text">Tutorial complete</div>
+           <div class="home-nudge-sub">Try Easy next?</div>
+         </div>
+         <button class="home-nudge-dismiss" id="homeNudgeDismiss" aria-label="Dismiss">×</button>
+       </div>`
+    : '';
+  state.showPostTutorialNudge = false;
 
   main.innerHTML = `
     <div class="home">
       <div class="home-header">
         <div class="home-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
         <div class="home-puzzle-date">${dateLabel}</div>
-        <div class="home-streak ${streakClass}">
-          ${streakIcon ? streakIcon + ' ' : ''}${streakLabel}
-        </div>
+        ${streakHTML}
       </div>
+
+      ${nudgeHTML}
 
       <div class="difficulty">
         <div class="seg" id="seg" role="tablist" aria-label="Difficulty">
@@ -2231,6 +2346,14 @@ function renderHome() {
       renderHome();
     };
   });
+
+  const nudgeDismiss = document.getElementById('homeNudgeDismiss');
+  if (nudgeDismiss) {
+    nudgeDismiss.onclick = () => {
+      const nudge = document.getElementById('homeNudge');
+      if (nudge) nudge.remove();
+    };
+  }
 
   positionSegIndicator();
   renderModePanel();
@@ -2305,6 +2428,29 @@ function enterMode(id) {
   state.selectedMode = id;
   state.practiceActive = false;
   state.practiceState = null;
+  state.tutorialActive = false;
+  state.tutorialState = null;
+  renderApp();
+}
+
+// First-visit tutorial. Beginner-mode rules with a fixed deterministic
+// answer. No XP, no streak, never persisted to today's modeStats.
+function startTutorial() {
+  state.view = 'game';
+  state.currentMode = 'beginner';
+  state.selectedMode = 'beginner';
+  state.tutorialActive = true;
+  state.practiceActive = false;
+  state.practiceState = null;
+  state.tutorialState = {
+    answer: TUTORIAL_ANSWER.slice(),
+    guesses: [],
+    currentGuess: [],
+    gameOver: false,
+    won: false,
+    busy: false,
+    xpEarned: 0
+  };
   renderApp();
 }
 
@@ -2333,6 +2479,8 @@ function goHome() {
   state.currentMode = null;
   state.practiceActive = false;
   state.practiceState = null;
+  state.tutorialActive = false;
+  state.tutorialState = null;
   renderApp();
 }
 
@@ -2340,11 +2488,14 @@ function goHome() {
 function renderGame() {
   const mode = getMode();
   const main = document.getElementById('main');
+  const headerHTML = state.tutorialActive
+    ? `<div class="tutorial-strip" id="tutorialStrip">${tutorialCaption() || ''}</div>`
+    : `<div class="game-header">
+         <div class="game-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
+         <div class="game-mode-label">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
+       </div>`;
   main.innerHTML = `
-    <div class="game-header">
-      <div class="game-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
-      <div class="game-mode-label">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
-    </div>
+    ${headerHTML}
     <div class="board" id="board"></div>
     <div class="end-banner" id="endBanner"></div>
     <section class="palette-wrap"><div class="palette" id="palette"></div></section>
@@ -3305,6 +3456,11 @@ function openModal(id) {
   if (id === 'modalStats') renderStats();
   if (id === 'modalAch') renderAchievements();
   if (id === 'modalHowTo') renderHowToExample();
+  if (id === 'modalSettings') {
+    // Section 6: hide the Achievements entry until a real solve exists.
+    const achRow = document.getElementById('settingAch');
+    if (achRow) achRow.style.display = hasHadRealSolve() ? '' : 'none';
+  }
   document.getElementById(id).classList.add('open');
 }
 function closeModal(id) {
@@ -3361,106 +3517,14 @@ function setupSettings() {
     state.totalXP = 0;
     state.achievements = {};
     state.history = {};
+    state.tutorialDone = false;
+    state.firstRealSolveDone = false;
     MODE_ORDER.forEach(id => state.modeStats[id] = defaultModeStats());
     initTodayState();
     persist();
     showToast('Progress reset');
     renderApp();
   };
-}
-
-// ── Onboarding ────────────────────────────────────────────
-// Wordless silent demo: phantom finger places three colours, feedback dots reveal.
-function runOnboarding() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    // Reduced-motion: show static example, no animation
-    skipOnboarding();
-    return;
-  }
-
-  const onboard = document.getElementById('onboard');
-  const stage = document.getElementById('onboardStage');
-
-  // Demo mode: 4 slots, palette of 4
-  const demoColours = [1, 4, 2, 5];
-  const demoAnswer = [4, 1, 2, 5];
-  const demoGuess = [1, 4, 2, 5];
-  const fb = computeFeedback(demoGuess, demoAnswer);
-
-  stage.innerHTML = `
-    <div class="row" id="oRow">
-      <div class="slots s4">
-        ${demoGuess.map(() => `<div class="slot"></div>`).join('')}
-      </div>
-      <div class="feedback s4">
-        ${fb.map(f => `<div class="fb-dot ${f}"></div>`).join('')}
-      </div>
-    </div>
-    <div class="palette c4" id="oPalette" style="margin-top: 18px;">
-      ${demoColours.map(id => {
-        const c = ALL_COLOURS.find(x => x.id === id);
-        return `<button class="swatch" style="background:${c.hex}; --size: 36px;"></button>`;
-      }).join('')}
-    </div>
-    <div class="onboard-finger" id="oFinger">
-      <svg viewBox="0 0 24 24" fill="#15110c"><path d="M12 2C8 2 6 5 6 9v6l-2 2v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3l-2-2V9c0-4-2-7-6-7z" opacity="0.85"/></svg>
-    </div>
-  `;
-
-  onboard.classList.add('open');
-
-  setTimeout(() => animateOnboard(stage), 250);
-}
-
-function animateOnboard(stage) {
-  const finger = document.getElementById('oFinger');
-  const palette = stage.querySelectorAll('.swatch');
-  const slots = stage.querySelectorAll('.slot');
-  const dots = stage.querySelectorAll('.fb-dot');
-  const demoGuess = [1, 4, 2, 5];
-  const demoColours = [
-    ALL_COLOURS[0].hex, ALL_COLOURS[3].hex, ALL_COLOURS[1].hex, ALL_COLOURS[4].hex
-  ];
-
-  let step = 0;
-  const stepDelay = 700;
-
-  function moveFinger(toEl, then) {
-    const stageRect = stage.getBoundingClientRect();
-    const r = toEl.getBoundingClientRect();
-    const x = r.left - stageRect.left + r.width / 2 - 18;
-    const y = r.top - stageRect.top + r.height / 2 - 6;
-    finger.style.opacity = '1';
-    finger.style.transform = `translate(${x}px, ${y}px)`;
-    setTimeout(then, 500);
-  }
-
-  function tap(slotIdx, paletteIdx) {
-    moveFinger(palette[paletteIdx], () => {
-      // Slot fills
-      slots[slotIdx].classList.add('filled');
-      slots[slotIdx].style.background = demoColours[slotIdx];
-      step++;
-      if (step < demoGuess.length) {
-        setTimeout(() => tap(step, step), stepDelay);
-      } else {
-        // Reveal feedback
-        setTimeout(() => {
-          finger.style.opacity = '0';
-          dots.forEach((d, i) => setTimeout(() => d.classList.add('revealed'), i * 200));
-          setTimeout(skipOnboarding, 2200);
-        }, 400);
-      }
-    });
-  }
-
-  tap(0, 0);
-}
-
-function skipOnboarding() {
-  const onboard = document.getElementById('onboard');
-  onboard.classList.remove('open');
-  try { localStorage.setItem(ONBOARD_KEY, '1'); } catch {}
 }
 
 // ── Keyboard ──────────────────────────────────────────────
@@ -3515,14 +3579,19 @@ function init() {
   applyCB();
   setupSettings();
   setupKeyboard();
-  renderApp();
 
-  // First-time visitor — wordless onboarding
-  let onboarded = false;
-  try { onboarded = !!localStorage.getItem(ONBOARD_KEY); } catch {}
-  if (!onboarded) {
-    setTimeout(() => runOnboarding(), 350);
-    document.getElementById('onboardSkip').onclick = skipOnboarding;
+  // Section 6: first-visit detection. If there's no hue.v2 key in
+  // localStorage the player is brand new — route them straight into
+  // the Beginner-mode tutorial puzzle, bypassing the difficulty
+  // selector. Existing players (any hue.v2 entry, even from V1) skip
+  // the tutorial.
+  let firstVisit = false;
+  try { firstVisit = !localStorage.getItem(STORAGE_KEY); } catch {}
+
+  if (firstVisit && !state.tutorialDone) {
+    startTutorial();
+  } else {
+    renderApp();
   }
 
   // Auto-roll at local midnight
