@@ -1734,7 +1734,7 @@ function computeFeedback(guess, answer) {
 // XP curve: total XP needed to reach level L = (L-1) * L * 50
 function levelForXP(xp) {
   if (xp < 100) return 1;
-  return Math.floor((1 + Math.sqrt(1 + 8 * xp / 50)) / 2);
+  return Math.floor((1 + Math.sqrt(1 + 4 * xp / 50)) / 2);
 }
 function xpForLevel(level) { return Math.max(0, (level - 1) * level * 50); }
 function xpProgress(xp) {
