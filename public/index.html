@@ -744,6 +744,102 @@
   .ach-toast .label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.6; }
   .ach-toast .name { font-size: 14px; font-weight: 700; margin-top: 2px; }
 
+  /* Home XP-to-next summary line — Section 9 */
+  .xp-summary {
+    text-align: center;
+    margin: 12px auto 18px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Level-up celebration ──────────────────────────── */
+  .levelup {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 240;
+  }
+  .levelup-burst {
+    position: absolute;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232, 189, 42, 0.50) 0%, rgba(232, 189, 42, 0) 65%);
+    transform: scale(0.4);
+    animation: levelupBurst 1500ms ease-out forwards;
+  }
+  .levelup-rays {
+    position: absolute;
+    width: 380px; height: 380px;
+    background: conic-gradient(from 0deg,
+      rgba(232,189,42,0) 0deg, rgba(232,189,42,0.20) 12deg, rgba(232,189,42,0) 24deg,
+      rgba(232,189,42,0) 60deg, rgba(232,189,42,0.18) 72deg, rgba(232,189,42,0) 84deg,
+      rgba(232,189,42,0) 120deg, rgba(232,189,42,0.20) 132deg, rgba(232,189,42,0) 144deg,
+      rgba(232,189,42,0) 180deg, rgba(232,189,42,0.18) 192deg, rgba(232,189,42,0) 204deg,
+      rgba(232,189,42,0) 240deg, rgba(232,189,42,0.20) 252deg, rgba(232,189,42,0) 264deg,
+      rgba(232,189,42,0) 300deg, rgba(232,189,42,0.18) 312deg, rgba(232,189,42,0) 324deg);
+    border-radius: 50%;
+    opacity: 0;
+    animation: levelupRays 1500ms ease-out forwards;
+    -webkit-mask: radial-gradient(circle, transparent 25%, black 60%);
+            mask: radial-gradient(circle, transparent 25%, black 60%);
+  }
+  .levelup-content {
+    position: relative;
+    background: linear-gradient(135deg, var(--gold), var(--gold-warm));
+    color: white;
+    padding: 26px 38px;
+    border-radius: 22px;
+    text-align: center;
+    box-shadow: 0 16px 40px rgba(200, 161, 58, 0.45), inset 0 1px 0 rgba(255,255,255,0.18);
+    animation: levelupPop 1500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .levelup-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.92;
+    margin-bottom: 4px;
+    font-weight: 800;
+  }
+  .levelup-num {
+    font-size: 64px;
+    font-weight: 900;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.18);
+  }
+  @keyframes levelupPop {
+    0%   { transform: scale(0.55); opacity: 0; }
+    18%  { transform: scale(1.10); opacity: 1; }
+    32%  { transform: scale(1.00); opacity: 1; }
+    78%  { transform: scale(1.00); opacity: 1; }
+    100% { transform: scale(0.92); opacity: 0; }
+  }
+  @keyframes levelupBurst {
+    0%   { transform: scale(0.4); opacity: 0; }
+    25%  { opacity: 0.85; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+  @keyframes levelupRays {
+    0%   { opacity: 0; transform: rotate(-30deg) scale(0.7); }
+    20%  { opacity: 0.9; }
+    100% { opacity: 0; transform: rotate(60deg) scale(1.4); }
+  }
+  /* prefers-reduced-motion: collapse to a static frame */
+  @media (prefers-reduced-motion: reduce) {
+    .levelup-content { animation: none; }
+    .levelup-burst, .levelup-rays { display: none; }
+  }
+
   /* ── Confetti ───────────────────────────────────────── */
   .confetti-layer {
     position: fixed;
@@ -1563,15 +1659,17 @@ const MODES = {
 };
 const MODE_ORDER = ['beginner', 'easy', 'standard', 'hard', 'extreme'];
 
+// difficulty drives the sort order of locked achievements in the
+// gallery — easier ones surface first so players see what's nearby.
 const ACHIEVEMENTS = [
-  { id: 'first_win',       icon: '🎯', name: 'First Drop',     desc: 'Solve your first puzzle.' },
-  { id: 'oneshot',         icon: '⭐', name: 'Eagle Eye',       desc: 'Solve any puzzle in one guess.' },
-  { id: 'streak_7',        icon: '🔥', name: 'Weekly Habit',   desc: 'Reach a 7-day streak.' },
-  { id: 'streak_30',       icon: '👑', name: 'Monthly Master', desc: 'Reach a 30-day streak.' },
-  { id: 'all_modes_today', icon: '🌈', name: 'Spectrum',       desc: 'Solve all five modes in one day.' },
-  { id: 'extreme_solved',  icon: '🌶', name: 'Extreme Solver', desc: 'Solve an Extreme puzzle.' },
-  { id: 'cb_solver',       icon: '◆',  name: 'Symbol Sense',   desc: 'Win a puzzle with colour-blind mode on.' },
-  { id: 'level_10',        icon: '💎', name: 'Level 10',        desc: 'Reach Level 10.' }
+  { id: 'first_win',       icon: '🎯', name: 'First Drop',     desc: 'Solve your first puzzle.',                difficulty: 1 },
+  { id: 'cb_solver',       icon: '◆',  name: 'Symbol Sense',   desc: 'Win a puzzle with colour-blind mode on.', difficulty: 2 },
+  { id: 'extreme_solved',  icon: '🌶', name: 'Extreme Solver', desc: 'Solve an Extreme puzzle.',                difficulty: 3 },
+  { id: 'streak_7',        icon: '🔥', name: 'Weekly Habit',   desc: 'Reach a 7-day streak.',                   difficulty: 3 },
+  { id: 'oneshot',         icon: '⭐', name: 'Eagle Eye',       desc: 'Solve any puzzle in one guess.',          difficulty: 4 },
+  { id: 'all_modes_today', icon: '🌈', name: 'Spectrum',       desc: 'Solve all five modes in one day.',        difficulty: 4 },
+  { id: 'level_10',        icon: '💎', name: 'Level 10',       desc: 'Reach Level 10.',                         difficulty: 5 },
+  { id: 'streak_30',       icon: '👑', name: 'Monthly Master', desc: 'Reach a 30-day streak.',                  difficulty: 5 }
 ];
 
 // Storage: keep hue.v2 for now to preserve existing player state.
@@ -2182,7 +2280,10 @@ function handleWin(rowIdx) {
 
   const xpGain = calculateXPGain(mode, rowIdx + 1, stats.streak);
   t.xpEarned = xpGain;
+  const levelBefore = levelForXP(state.totalXP);
   state.totalXP += xpGain;
+  const levelAfter = levelForXP(state.totalXP);
+  const leveledUp = levelAfter > levelBefore;
 
   recordHistory();
 
@@ -2212,6 +2313,12 @@ function handleWin(rowIdx) {
     burstConfetti();
     openResultModal();
   }, 1400);
+
+  if (leveledUp) {
+    // Fire after the result modal lands so the celebration sits over it
+    // rather than fighting the win animations on the board.
+    setTimeout(() => showLevelUpCelebration(levelAfter), 2000);
+  }
 }
 
 function handleLoss() {
@@ -2296,6 +2403,26 @@ function flashRow() {
   rowEl.classList.remove('shake');
   void rowEl.offsetWidth;
   rowEl.classList.add('shake');
+}
+
+// ── Level-up celebration ─────────────────────────────────
+// Section 9: brief flourish on level boundary cross. ~1.5s, no modal,
+// fades automatically. prefers-reduced-motion collapses to a static
+// frame (animation is suppressed via the media query above).
+function showLevelUpCelebration(newLevel) {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const el = document.createElement('div');
+  el.className = 'levelup';
+  el.innerHTML = `
+    <div class="levelup-burst"></div>
+    <div class="levelup-rays"></div>
+    <div class="levelup-content">
+      <div class="levelup-label">Level Up</div>
+      <div class="levelup-num">${newLevel}</div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), reduced ? 1400 : 1700);
 }
 
 // ── Confetti ──────────────────────────────────────────────
@@ -2397,6 +2524,12 @@ function renderHome() {
   const streakHTML = showProgression
     ? `<div class="home-streak ${streakClass}">${streakIcon ? streakIcon + ' ' : ''}${streakLabel}${freezeDotsHTML}</div>`
     : '';
+  // Section 9: muted XP-to-next line on the difficulty selector.
+  const xpProg = xpProgress(state.totalXP);
+  const xpToNext = Math.max(0, xpProg.needed - xpProg.current);
+  const xpSummaryHTML = showProgression
+    ? `<div class="xp-summary">LV ${xpProg.level} — ${xpToNext} XP to LV ${xpProg.level + 1}</div>`
+    : '';
 
   // Post-tutorial nudge — shown once after the first-visit tutorial
   // completes. Cleared on render so it doesn't persist across reloads
@@ -2418,6 +2551,7 @@ function renderHome() {
         <div class="home-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
         <div class="home-puzzle-date">${dateLabel}</div>
         ${streakHTML}
+        ${xpSummaryHTML}
       </div>
 
       ${nudgeHTML}
@@ -2881,18 +3015,27 @@ function stopCountdown() {
 // ── Achievements modal ────────────────────────────────────
 function renderAchievements() {
   const grid = document.getElementById('achGrid');
-  grid.innerHTML = ACHIEVEMENTS.map(a => {
-    const unlocked = !!state.achievements[a.id];
-    return `
-      <div class="ach-card ${unlocked ? 'unlocked' : 'locked'}">
-        <div class="ach-icon-wrap">${a.icon}</div>
-        <div class="ach-text">
-          <div class="ach-name">${a.name}</div>
-          <div class="ach-desc">${a.desc}</div>
-        </div>
+  // Section 9: unlocked first (most-recent first), then locked
+  // (in unlock-difficulty order so the next reachable one surfaces).
+  const sorted = ACHIEVEMENTS.map(a => ({
+    ...a,
+    unlocked: !!state.achievements[a.id],
+    unlockedAt: state.achievements[a.id]?.unlockedAt || 0
+  })).sort((x, y) => {
+    if (x.unlocked !== y.unlocked) return x.unlocked ? -1 : 1;
+    if (x.unlocked) return y.unlockedAt - x.unlockedAt;
+    return (x.difficulty || 99) - (y.difficulty || 99);
+  });
+
+  grid.innerHTML = sorted.map(a => `
+    <div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}" aria-label="${a.unlocked ? 'Unlocked' : 'Locked'}: ${a.name}. ${a.desc}">
+      <div class="ach-icon-wrap">${a.icon}</div>
+      <div class="ach-text">
+        <div class="ach-name">${a.name}</div>
+        <div class="ach-desc">${a.desc}</div>
       </div>
-    `;
-  }).join('');
+    </div>
+  `).join('');
 }
 
 // ── How-to-play example ──────────────────────────────────
