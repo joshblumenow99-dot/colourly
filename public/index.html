@@ -5,9 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#f5f1e8">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Colourly">
 <title>Colourly — Daily Colour Puzzle</title>
+
+<!-- Section 11: PWA manifest. Provides name, icons, theme/background
+     colours, and standalone display so Android/desktop can install
+     Colourly as an app. -->
+<link rel="manifest" href="/manifest.webmanifest">
+
+<!-- iOS A2HS icon. iOS uses this for the home-screen icon when the
+     player adds the site via Safari's share sheet. -->
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+
+<!-- iOS apple-touch-startup-image — one per device in the matrix.
+     Without these, iOS shows a white screen during the cold-start of
+     a standalone-mode PWA. Each link's media query targets a specific
+     device by (device-width, device-height, pixel-ratio, orientation). -->
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1290x2796.png"
+      media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1179x2556.png"
+      media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1284x2778.png"
+      media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1170x2532.png"
+      media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1125x2436.png"
+      media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-1242x2688.png"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-828x1792.png"
+      media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="/splash/apple-splash-750x1334.png"
+      media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 <style>
   :root {
     --bg: #f5f1e8;
@@ -810,6 +843,79 @@
   .btn.primary:hover:not(:disabled) { background: linear-gradient(135deg, #2a231a, #15110c); }
 
   /* ── Toast ──────────────────────────────────────────── */
+  /* Section 11: Add-to-Home-Screen bottom sheet. Slides up from the
+     bottom edge, dismissible. Visible only when .open is set. */
+  .a2hs-sheet {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translate(-50%, 110%);
+    width: min(420px, calc(100% - 16px));
+    background: var(--surface, #ffffff);
+    color: var(--ink);
+    padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+    margin-bottom: 8px;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(20, 17, 12, 0.18);
+    z-index: 50;
+    transition: transform var(--duration) var(--ease);
+    pointer-events: none;
+  }
+  .a2hs-sheet.open {
+    transform: translate(-50%, 0);
+    pointer-events: auto;
+  }
+  .a2hs-handle {
+    width: 36px; height: 4px;
+    border-radius: 2px;
+    background: var(--line-strong);
+    margin: 0 auto 10px;
+  }
+  .a2hs-icon {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .a2hs-icon-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .a2hs-icon-dot.c1 { background: var(--c-1); }
+  .a2hs-icon-dot.c2 { background: var(--c-2); }
+  .a2hs-icon-dot.c3 { background: var(--c-3); }
+  .a2hs-icon-dot.c4 { background: var(--c-4); }
+  .a2hs-title {
+    text-align: center;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+  }
+  .a2hs-body {
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+    margin-bottom: 14px;
+  }
+  .a2hs-body kbd {
+    background: var(--bg-deep);
+    border-radius: 6px;
+    padding: 1px 6px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .a2hs-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .a2hs-actions .btn {
+    flex: 1;
+    max-width: 160px;
+  }
+
   .toast {
     position: fixed;
     top: max(20px, env(safe-area-inset-top));
@@ -1565,6 +1671,25 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="xp-pop" id="xpPop" aria-live="polite"></div>
 <div class="ach-toast" id="achToast" role="status" aria-live="polite"></div>
+
+<!-- Section 11: Add-to-Home-Screen prompt (bottom sheet). Hidden by
+     default; shown by maybeShowA2HSPrompt() once the player has a
+     3-day streak and isn't already running in standalone mode. -->
+<div class="a2hs-sheet" id="a2hsSheet" role="dialog" aria-labelledby="a2hsTitle" aria-hidden="true">
+  <div class="a2hs-handle" aria-hidden="true"></div>
+  <div class="a2hs-icon" aria-hidden="true">
+    <span class="a2hs-icon-dot c1"></span>
+    <span class="a2hs-icon-dot c2"></span>
+    <span class="a2hs-icon-dot c3"></span>
+    <span class="a2hs-icon-dot c4"></span>
+  </div>
+  <div class="a2hs-title" id="a2hsTitle">Add Colourly to your home screen</div>
+  <div class="a2hs-body" id="a2hsBody"></div>
+  <div class="a2hs-actions">
+    <button class="btn" id="a2hsDismiss" type="button">Not now</button>
+    <button class="btn primary" id="a2hsInstall" type="button" hidden>Install</button>
+  </div>
+</div>
 
 <!-- Modals -->
 <div class="modal-backdrop" id="modalHowTo">
@@ -4122,6 +4247,147 @@ function renderApp() {
   renderXPBar();
   if (state.view === 'home') renderHome();
   else renderGame();
+  maybeShowA2HSPrompt();
+}
+
+// ── Section 11: Add-to-Home-Screen prompt ─────────────────
+//
+// Two flavours, gated by the same rules:
+//  - Android/Chromium: capture the beforeinstallprompt event and
+//    drive a real install via deferredA2HSPrompt.prompt() when the
+//    player taps Install.
+//  - iOS Safari: no programmatic API. We show instructions for the
+//    Safari share-sheet flow and rely on the player to do it manually.
+//
+// Gate rules (Section 11 hard requirements):
+//  - 3-day streak: max per-mode streak >= 3.
+//  - Not first visit, not during onboarding (those land on the home
+//    view with hasHadRealSolve=false; the streak gate also catches it
+//    since streak<3 implies <3 solves).
+//  - Once per device. If dismissed, 30-day cooldown before re-show.
+//  - Never if already in standalone mode (already installed) or
+//    permanently dismissed via the appinstalled event.
+
+const A2HS_DISMISS_KEY = 'colourly.a2hs.dismissedAt';
+const A2HS_INSTALLED_KEY = 'colourly.a2hs.installedAt';
+const A2HS_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+const A2HS_STREAK_GATE = 3;
+
+let deferredA2HSPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredA2HSPrompt = e;
+});
+window.addEventListener('appinstalled', () => {
+  try { localStorage.setItem(A2HS_INSTALLED_KEY, new Date().toISOString()); } catch {}
+  deferredA2HSPrompt = null;
+  hideA2HSPrompt();
+});
+
+function isStandalone() {
+  if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  if (navigator.standalone === true) return true;       // iOS Safari
+  return false;
+}
+
+function isIOSSafari() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  // Safari (not Chrome/Firefox/etc on iOS) — checks for "Safari" with
+  // no other major-vendor token. Imperfect but good enough for prompt
+  // suppression on non-Safari iOS browsers (which can't A2HS at all).
+  const isSafari = /Safari/.test(ua) && !/(CriOS|FxiOS|EdgiOS|OPiOS|Brave)/.test(ua);
+  return isIOS && isSafari;
+}
+
+function maxStreak() {
+  return Math.max(0, ...MODE_ORDER.map(id => state.modeStats[id].streak || 0));
+}
+
+function a2hsCooldownActive() {
+  try {
+    const raw = localStorage.getItem(A2HS_DISMISS_KEY);
+    if (!raw) return false;
+    const t = Date.parse(raw);
+    if (!t) return false;
+    return (Date.now() - t) < A2HS_COOLDOWN_MS;
+  } catch { return false; }
+}
+
+function a2hsAlreadyInstalled() {
+  try { return !!localStorage.getItem(A2HS_INSTALLED_KEY); } catch { return false; }
+}
+
+function a2hsEligible() {
+  if (state.view !== 'home') return false;
+  if (isStandalone()) return false;
+  if (a2hsAlreadyInstalled()) return false;
+  if (a2hsCooldownActive()) return false;
+  if (maxStreak() < A2HS_STREAK_GATE) return false;
+  // Suppress on iOS browsers that aren't Safari (they can't A2HS at all)
+  // but allow non-iOS browsers without a deferred prompt — they'll just
+  // see the dismiss-only sheet, which still drives discoverability.
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  if (isIOS && !isIOSSafari()) return false;
+  return true;
+}
+
+function maybeShowA2HSPrompt() {
+  if (!a2hsEligible()) { hideA2HSPrompt(); return; }
+  showA2HSPrompt();
+}
+
+function showA2HSPrompt() {
+  const sheet = document.getElementById('a2hsSheet');
+  if (!sheet) return;
+  if (sheet.classList.contains('open')) return;
+
+  const body = document.getElementById('a2hsBody');
+  const installBtn = document.getElementById('a2hsInstall');
+
+  if (deferredA2HSPrompt) {
+    // Android / Chromium — real install possible.
+    body.textContent = 'Install Colourly for one-tap access and full-screen play.';
+    installBtn.hidden = false;
+    installBtn.onclick = async () => {
+      try {
+        deferredA2HSPrompt.prompt();
+        const choice = await deferredA2HSPrompt.userChoice;
+        deferredA2HSPrompt = null;
+        if (choice && choice.outcome === 'accepted') {
+          try { localStorage.setItem(A2HS_INSTALLED_KEY, new Date().toISOString()); } catch {}
+        } else {
+          // User dismissed the native prompt — apply our cooldown.
+          try { localStorage.setItem(A2HS_DISMISS_KEY, new Date().toISOString()); } catch {}
+        }
+      } catch (e) { /* swallow — we'll fall back to the cooldown via Not now */ }
+      hideA2HSPrompt();
+    };
+  } else if (isIOSSafari()) {
+    // iOS Safari — show the manual flow.
+    body.innerHTML = 'Tap <kbd>Share</kbd> in Safari, then <kbd>Add to Home Screen</kbd>.';
+    installBtn.hidden = true;
+  } else {
+    // Other desktop browsers — generic copy.
+    body.textContent = 'Add Colourly to your home screen for one-tap access.';
+    installBtn.hidden = true;
+  }
+
+  document.getElementById('a2hsDismiss').onclick = () => {
+    try { localStorage.setItem(A2HS_DISMISS_KEY, new Date().toISOString()); } catch {}
+    hideA2HSPrompt();
+  };
+
+  sheet.setAttribute('aria-hidden', 'false');
+  sheet.classList.add('open');
+}
+
+function hideA2HSPrompt() {
+  const sheet = document.getElementById('a2hsSheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden', 'true');
 }
 
 // ── Bootstrap ────────────────────────────────────────────
