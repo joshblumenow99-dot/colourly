@@ -1177,11 +1177,40 @@
     margin-top: 4px;
   }
   .result-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    display: block;
   }
-  .result-actions .btn { padding: 14px; }
+  .result-actions .btn {
+    width: 100%;
+    padding: 18px;
+    font-size: 13px;
+  }
+  .result-next-mode {
+    display: block;
+    margin: 14px auto 0;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: var(--ink-soft);
+    background: transparent;
+    border-radius: 999px;
+    transition: color var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+    text-align: center;
+  }
+  .result-next-mode:hover { color: var(--ink); background: rgba(20, 17, 12, 0.04); }
+  .result-next-mode:active { transform: scale(0.97); }
+  .result-practice-tag {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(20, 17, 12, 0.06);
+    color: var(--ink-soft);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
   .result-next {
     margin-top: 14px;
     text-align: center;
@@ -1568,6 +1597,12 @@ const state = {
   puzzleDate: '',
 
   todayState: {},
+
+  // Practice replay session — non-canonical, no XP, no streak credit.
+  // Active when the player taps "Replay {mode} →" on the result screen
+  // for a mode they've already solved today.
+  practiceActive: false,
+  practiceState: null,
 };
 
 // ── Helpers ───────────────────────────────────────────────
@@ -1866,8 +1901,35 @@ function initTodayState() {
 }
 
 // ── Game actions ──────────────────────────────────────────
-function getCurrent() { return state.todayState[state.currentMode]; }
+function getCurrent() {
+  if (state.practiceActive) return state.practiceState;
+  return state.todayState[state.currentMode];
+}
 function getMode() { return MODES[state.currentMode]; }
+
+// Next mode in the ladder (Beginner → Easy → Medium → Hard → Extreme).
+// Returns null after Extreme — Section 7 says the secondary CTA disappears.
+function nextModeInLadder(currentModeId) {
+  const idx = MODE_ORDER.indexOf(currentModeId);
+  if (idx === -1 || idx >= MODE_ORDER.length - 1) return null;
+  return MODE_ORDER[idx + 1];
+}
+
+// Returns the secondary CTA descriptor for the post-solve screen, or null
+// if the current mode is Extreme. If the next mode is already solved
+// today, the link replays it as practice (no XP, no streak credit).
+function nextModeCTA(currentModeId) {
+  const nextId = nextModeInLadder(currentModeId);
+  if (!nextId) return null;
+  const stats = state.modeStats[nextId];
+  const solvedToday = stats.lastSolvedPuzzle === state.puzzleNum;
+  return {
+    nextId,
+    nextName: MODES[nextId].name,
+    label: solvedToday ? `Replay ${MODES[nextId].name} →` : `Try ${MODES[nextId].name} next →`,
+    isPractice: solvedToday
+  };
+}
 
 function addColour(id) {
   const t = getCurrent();
@@ -1922,7 +1984,7 @@ function submitGuess() {
     } else if (isLast) {
       handleLoss();
     } else {
-      persist();
+      if (!state.practiceActive) persist();
       renderGameControls();
     }
   });
@@ -1931,11 +1993,29 @@ function submitGuess() {
 function handleWin(rowIdx) {
   const t = getCurrent();
   const mode = getMode();
-  const stats = state.modeStats[mode.id];
 
   t.won = true;
   t.gameOver = true;
 
+  // Win sequence visuals run for both real and practice solves.
+  const rowEl = document.querySelector(`.row[data-row="${rowIdx}"]`);
+  if (rowEl) {
+    rowEl.classList.add('win-wave');
+    setTimeout(() => rowEl.classList.add('halo'), 600);
+  }
+
+  if (state.practiceActive) {
+    // Practice solve: no XP, no streak, no persist, no achievements.
+    renderGameControls();
+    renderEndState();
+    setTimeout(() => {
+      burstConfetti();
+      openResultModal();
+    }, 1400);
+    return;
+  }
+
+  const stats = state.modeStats[mode.id];
   stats.played++;
   stats.won++;
   if (rowIdx < stats.distribution.length) stats.distribution[rowIdx]++;
@@ -1956,13 +2036,6 @@ function handleWin(rowIdx) {
 
   persist();
 
-  // Win sequence: row wave → halo pulse → result modal
-  const rowEl = document.querySelector(`.row[data-row="${rowIdx}"]`);
-  if (rowEl) {
-    rowEl.classList.add('win-wave');
-    setTimeout(() => rowEl.classList.add('halo'), 600);
-  }
-
   showXPPop(xpGain);
   renderXPBar();
   renderGameControls();
@@ -1978,13 +2051,8 @@ function handleWin(rowIdx) {
 function handleLoss() {
   const t = getCurrent();
   const mode = getMode();
-  const stats = state.modeStats[mode.id];
 
   t.gameOver = true;
-  stats.played++;
-  stats.streak = 0;
-
-  persist();
 
   const rowIdx = t.guesses.length - 1;
   const rowEl = document.querySelector(`.row[data-row="${rowIdx}"]`);
@@ -1992,6 +2060,13 @@ function handleLoss() {
     rowEl.classList.remove('shake');
     void rowEl.offsetWidth;
     rowEl.classList.add('shake');
+  }
+
+  if (!state.practiceActive) {
+    const stats = state.modeStats[mode.id];
+    stats.played++;
+    stats.streak = 0;
+    persist();
   }
 
   renderGameControls();
@@ -2228,11 +2303,36 @@ function enterMode(id) {
   state.view = 'game';
   state.currentMode = id;
   state.selectedMode = id;
+  state.practiceActive = false;
+  state.practiceState = null;
   renderApp();
 }
+
+// Practice replay: same date's puzzle, fresh in-game state, transient.
+// No XP, no streak credit, never persisted.
+function enterModePractice(id) {
+  const mode = MODES[id];
+  state.view = 'game';
+  state.currentMode = id;
+  state.selectedMode = id;
+  state.practiceActive = true;
+  state.practiceState = {
+    answer: generateAnswer(state.puzzleNum, mode),
+    guesses: [],
+    currentGuess: [],
+    gameOver: false,
+    won: false,
+    busy: false,
+    xpEarned: 0
+  };
+  renderApp();
+}
+
 function goHome() {
   state.view = 'home';
   state.currentMode = null;
+  state.practiceActive = false;
+  state.practiceState = null;
   renderApp();
 }
 
@@ -2576,6 +2676,7 @@ function openResultModal() {
   const sub = t.won
     ? `Puzzle No. ${state.puzzleNum} · ${mode.name} · ${t.guesses.length}/${mode.maxGuesses}`
     : `Puzzle No. ${state.puzzleNum} · ${mode.name}`;
+  const practiceTag = state.practiceActive ? `<div style="text-align:center;"><span class="result-practice-tag">Practice</span></div>` : '';
 
   // Best mode beaten today
   const bestModeIdx = MODE_ORDER.reduce((acc, id, idx) =>
@@ -2590,10 +2691,22 @@ function openResultModal() {
     gridHTML += `<div class="row" style="animation-delay: ${i * 60}ms">${dots}</div>`;
   });
 
+  // Section 7: Share is the primary CTA. Try-next-mode is a secondary
+  // text link below — never a primary button. After Extreme, the link
+  // disappears entirely (V3 will replace it with "View today's stats").
+  const cta = nextModeCTA(mode.id);
+  const ctaHTML = cta
+    ? `<button class="result-next-mode" id="resultNextMode" type="button" aria-label="${cta.label}">${cta.label}</button>`
+    : '';
+
+  // In practice mode the +XP card would lie about a non-event; show 0.
+  const xpDisplay = (t.won && !state.practiceActive) ? '+' + t.xpEarned : '0';
+
   const body = document.getElementById('resultBody');
   body.innerHTML = `
     <div class="result-headline" id="resultHeadline">${headline}</div>
     <div class="result-sub">${sub}</div>
+    ${practiceTag}
     <div class="result-grid">${gridHTML}</div>
     <div class="result-stats">
       <div class="result-stat">
@@ -2601,7 +2714,7 @@ function openResultModal() {
         <div class="result-stat-label">Streak</div>
       </div>
       <div class="result-stat">
-        <div class="result-stat-num">${t.won ? '+' + t.xpEarned : '0'}</div>
+        <div class="result-stat-num">${xpDisplay}</div>
         <div class="result-stat-label">XP</div>
       </div>
       <div class="result-stat">
@@ -2610,14 +2723,19 @@ function openResultModal() {
       </div>
     </div>
     <div class="result-actions">
-      <button class="btn" id="resultStats">Stats</button>
       <button class="btn primary" id="resultShare">Share</button>
     </div>
+    ${ctaHTML}
     <div class="result-next">Next Puzzle<span class="countdown" id="countdownResult">--:--:--</span></div>
   `;
-
-  document.getElementById('resultStats').onclick = () => { closeModal('modalResult'); openModal('modalStats'); };
   document.getElementById('resultShare').onclick = () => { closeModal('modalResult'); handleShareClick(); };
+  if (cta) {
+    document.getElementById('resultNextMode').onclick = () => {
+      closeModal('modalResult');
+      if (cta.isPractice) enterModePractice(cta.nextId);
+      else enterMode(cta.nextId);
+    };
+  }
 
   document.getElementById('modalResult').classList.add('open');
   startCountdown('countdownResult');
