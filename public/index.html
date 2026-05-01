@@ -2228,7 +2228,7 @@ function renderGame() {
   `;
   document.getElementById('btnDelete').onclick = () => {
     const t = getCurrent();
-    if (t.gameOver) openShareModal();
+    if (t.gameOver) handleShareClick();
     else deleteLast();
   };
   document.getElementById('btnEnter').onclick = () => {
@@ -2458,7 +2458,7 @@ function renderStats() {
   `).join('');
 
   if (t.gameOver) {
-    document.getElementById('btnShare2').onclick = () => openShareModal(statsTab);
+    document.getElementById('btnShare2').onclick = () => handleShareClick(statsTab);
     startCountdown('countdown');
   } else {
     stopCountdown();
@@ -2590,7 +2590,7 @@ function openResultModal() {
   `;
 
   document.getElementById('resultStats').onclick = () => { closeModal('modalResult'); openModal('modalStats'); };
-  document.getElementById('resultShare').onclick = () => { closeModal('modalResult'); openShareModal(); };
+  document.getElementById('resultShare').onclick = () => { closeModal('modalResult'); handleShareClick(); };
 
   document.getElementById('modalResult').classList.add('open');
   startCountdown('countdownResult');
@@ -3006,9 +3006,153 @@ function makeMockPuzzleState({ mode, guessCount, outcome, streak, cb }) {
   };
 }
 
-// Legacy direct-share: kept for the in-game Delete-as-Share button shortcut.
+// ── Share V2 flow ────────────────────────────────────────
+// Behind a localStorage flag (hue.flags.shareV2). Default off so we can
+// roll back to V1 (the share modal with copy/save/challenge buttons)
+// without a deploy.
+
+const FLAG_SHARE_V2 = 'hue.flags.shareV2';
+const EVENTS_KEY = 'colourly.events.v1';
+const SHARE_BASE_URL = 'https://colourly.net/';
+
+function isShareV2Enabled() {
+  try {
+    if (localStorage.getItem(FLAG_SHARE_V2) === 'true') return true;
+  } catch {}
+  // Convenience: ?sharev2=1 in the URL also enables for dev/testing.
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('sharev2') === '1') return true;
+  } catch {}
+  return false;
+}
+
+// Outcome variants per Section 5 of the V2 plan.
+function buildShareTextV2(puzzleState, modeId) {
+  const { outcome, guessCount, streakCount } = puzzleState;
+  const url = `colourly.net/?ref=share-${modeId}`;
+  if (outcome === 'failed') {
+    return `Today's Colourly beat me. Think you can crack it? Play free at ${url}`;
+  }
+  if (streakCount >= 7) {
+    return `${streakCount}-day Colourly streak today — your turn. Play free at ${url}`;
+  }
+  return `I just solved today's Colourly in ${guessCount} — can you beat me? Play free at ${url}`;
+}
+
+function buildShareUrlV2(modeId) {
+  return `${SHARE_BASE_URL}?ref=share-${modeId}`;
+}
+
+// Lightweight client-side event log. Lands in localStorage; the Wave 3
+// analytics integration will read this and forward it. Capped at 200 to
+// avoid unbounded growth on private browsers that don't surface the
+// quota error.
+function logShareEvent(event, modeId, extra) {
+  try {
+    let events = [];
+    const raw = localStorage.getItem(EVENTS_KEY);
+    if (raw) events = JSON.parse(raw);
+    if (!Array.isArray(events)) events = [];
+    events.push({ event, modeId, ts: Date.now(), ...(extra || {}) });
+    if (events.length > 200) events = events.slice(-200);
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+  } catch {}
+}
+
+// Single share entry point used by all three share buttons. When the V2
+// flag is on, runs the new flow inline; otherwise opens the V1 modal.
+async function handleShareClick(modeId) {
+  const id = modeId || state.currentMode || state.selectedMode || 'standard';
+  if (isShareV2Enabled()) {
+    return shareV2(id);
+  }
+  return openShareModal(id);
+}
+
+async function shareV2(modeId) {
+  const id = modeId || state.currentMode || state.selectedMode || 'standard';
+  const t = state.todayState[id];
+  if (!t || !t.gameOver) {
+    showToast('Finish the puzzle first');
+    return;
+  }
+
+  logShareEvent('share_button_click', id);
+
+  const puzzleState = buildPuzzleStateFromGame(id);
+  const text = buildShareTextV2(puzzleState, id);
+  const url = buildShareUrlV2(id);
+
+  let blob = null;
+  try {
+    blob = await generateShareImage(puzzleState);
+  } catch (e) {
+    // Image generation failed — proceed with text-only share.
+  }
+
+  // 1. Web Share API with files + text.
+  if (blob && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+    const file = new File([blob], `colourly-${state.puzzleNum}.png`, { type: 'image/png' });
+    const payload = { files: [file], text, url, title: 'Colourly' };
+    if (navigator.canShare(payload)) {
+      try {
+        await navigator.share(payload);
+        logShareEvent('share_completion', id, { path: 'webshare-files' });
+        return;
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // User cancelled — not a failure.
+        // Otherwise fall through to clipboard.
+      }
+    }
+  }
+
+  // 2. Web Share API without files (some platforms only support text+url).
+  if (typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ text, url })) {
+    try {
+      await navigator.share({ text, url, title: 'Colourly' });
+      logShareEvent('share_completion', id, { path: 'webshare-text' });
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+  }
+
+  // 3. Desktop fallback: clipboard with image + text.
+  if (blob && navigator.clipboard && typeof window.ClipboardItem === 'function') {
+    try {
+      const item = new ClipboardItem({
+        'image/png': blob,
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([item]);
+      showToast('Copied — paste anywhere');
+      logShareEvent('share_completion', id, { path: 'clipboard-image' });
+      return;
+    } catch (e) {
+      // Some browsers reject ClipboardItem with multiple types — fall through.
+    }
+  }
+
+  // 4. Last resort: text-only clipboard.
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied — paste anywhere');
+      logShareEvent('share_completion', id, { path: 'clipboard-text' });
+      return;
+    } catch {}
+  }
+
+  showToast('Share unavailable');
+  logShareEvent('share_failed', id);
+}
+
+// Legacy direct-share entry kept so existing callers keep working.
 async function shareResult(modeId) {
-  openShareModal(modeId);
+  return handleShareClick(modeId);
 }
 
 // ── Modals ────────────────────────────────────────────────
