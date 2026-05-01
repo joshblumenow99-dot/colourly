@@ -1,0 +1,22 @@
+{
+  "name": "colourly",
+  "version": "0.2.0",
+  "description": "A daily colour puzzle.",
+  "private": true,
+  "scripts": {
+    "dev": "python3 -m http.server 8000 --directory public",
+    "build": "echo 'No build step required — public/ is the build output.'",
+    "deploy": "npx wrangler pages deploy public --project-name=colourly"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/share": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  }
+}

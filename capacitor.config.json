@@ -1,0 +1,11 @@
+{
+  "appId": "app.colourly.game",
+  "appName": "Colourly",
+  "webDir": "public",
+  "ios": {
+    "contentInset": "always"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
