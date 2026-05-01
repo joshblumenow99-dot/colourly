@@ -1328,8 +1328,25 @@
   }
   .onboard-skip:hover { background: rgba(20,17,12,0.10); color: var(--ink); }
 
-  /* Hidden share canvas */
-  #shareCanvas { display: none; }
+  /* Dev share preview */
+  .devshare {
+    position: fixed; inset: 0;
+    background: #1f1f1f; z-index: 9999;
+    overflow: auto; padding: 24px;
+    color: #f5f1e8;
+    font-family: ui-rounded, system-ui, sans-serif;
+  }
+  .devshare h1 { font-size: 22px; margin-bottom: 18px; letter-spacing: 0.4px; }
+  .devshare-case {
+    margin-bottom: 28px;
+    background: #2a2a2a;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .devshare-case h2 { font-size: 14px; color: #c8a13a; margin-bottom: 10px; letter-spacing: 0.6px; }
+  .devshare-case img { display: block; max-width: 480px; width: 100%; box-shadow: 0 6px 24px rgba(0,0,0,0.55); border-radius: 4px; }
+  .devshare-case .meta { font-size: 11px; color: #888; margin-top: 8px; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -1347,7 +1364,6 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="xp-pop" id="xpPop" aria-live="polite"></div>
 <div class="ach-toast" id="achToast" role="status" aria-live="polite"></div>
-<canvas id="shareCanvas" width="1200" height="1200"></canvas>
 
 <!-- Modals -->
 <div class="modal-backdrop" id="modalHowTo">
@@ -2665,148 +2681,329 @@ function openShareModal(modeId) {
   openModal('modalShare');
 }
 
-// Render share image to canvas, then trigger download.
-// Spoiler-safe: feedback dots only. Never the guess colours, never the answer.
-function renderShareCanvas(modeId) {
-  const mode = MODES[modeId];
-  const t = state.todayState[modeId];
-  const canvas = document.getElementById('shareCanvas');
-  const W = canvas.width, H = canvas.height;
+// V2 share image renderer — implements Section 4 + Appendix A of the V2 plan.
+// Returns a 1080×1350 PNG blob. Spoiler-safe: feedback dots only, never the
+// guess colours, never the answer.
+//
+// puzzleState shape:
+//   {
+//     puzzleNumber: number,
+//     modeName: string,            // e.g. 'Beginner'
+//     guessCount: number,          // guesses played
+//     maxGuesses: number,
+//     paletteColours: string[],    // active mode's palette in order
+//     gridState: [{ feedback: ('correct'|'misplaced'|'absent')[] }, ...]
+//     outcome: 'solved' | 'failed',
+//     streakCount: number,
+//     colourBlind: boolean
+//   }
+async function generateShareImage(puzzleState) {
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Background gradient
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, '#fbf6e9');
-  bgGrad.addColorStop(1, '#ede5d4');
-  ctx.fillStyle = bgGrad;
+  const {
+    puzzleNumber, modeName, guessCount, maxGuesses,
+    paletteColours, gridState, outcome, streakCount, colourBlind
+  } = puzzleState;
+
+  // 1. Background
+  ctx.fillStyle = '#F5F1E8';
   ctx.fillRect(0, 0, W, H);
 
-  // Paper grain (sparse noise dots)
-  ctx.save();
-  ctx.globalAlpha = 0.05;
-  for (let i = 0; i < 1200; i++) {
-    ctx.fillStyle = i % 2 ? '#15110c' : '#6c6359';
-    const x = Math.random() * W;
-    const y = Math.random() * H;
-    ctx.fillRect(x, y, 1.4, 1.4);
-  }
-  ctx.restore();
+  // Layout anchors per Appendix A
+  const TOP_PAD = 162;             // 12% canvas height
+  const WORDMARK_HEIGHT = 120;     // ~9% canvas height
+  const wordmarkCenterY = TOP_PAD + WORDMARK_HEIGHT / 2;
 
-  // Wordmark — each letter in its Extreme-mode colour
-  ctx.font = '900 92px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
+  // 2. Rainbow wordmark — each letter from active palette in order, cycling
+  drawShareWordmark(ctx, W, wordmarkCenterY, paletteColours);
+
+  // 3. Metadata line — 32 px below wordmark
+  const wordmarkBottom = TOP_PAD + WORDMARK_HEIGHT;
+  const metaTextSize = 24;
+  const metaCenterY = wordmarkBottom + 32 + metaTextSize / 2;
+  ctx.font = `400 ${metaTextSize}px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif`;
+  ctx.fillStyle = '#6B6B6B';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
-  const letterColours = ['#d94e3c', '#ed8a36', '#c9a01e', '#4ea36a', '#3b7eb6', '#8a5cb0', '#36a4a4', '#d56ba1'];
-  const letterSpace = 28;
-  // Measure total width to centre
-  let totalW = 0;
-  const letterWs = WORDMARK.split('').map((ch) => {
-    const w = ctx.measureText(ch).width;
-    totalW += w;
-    return w;
-  });
-  totalW += letterSpace * (WORDMARK.length - 1);
-  let cursor = (W - totalW) / 2;
-  WORDMARK.split('').forEach((ch, i) => {
-    // Subtle dark stroke for legibility on cream
-    ctx.strokeStyle = 'rgba(20,17,12,0.10)';
-    ctx.lineWidth = 1;
-    ctx.fillStyle = letterColours[i];
-    ctx.fillText(ch, cursor, 170);
-    ctx.strokeText(ch, cursor, 170);
-    cursor += letterWs[i] + letterSpace;
-  });
+  ctx.fillText(`Puzzle No. ${puzzleNumber} · ${modeName} · ${guessCount}/${maxGuesses}`, W / 2, metaCenterY);
 
-  // Subtitle
-  ctx.fillStyle = '#6c6359';
-  ctx.font = '600 36px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
-  const score = t.won ? `${t.guesses.length}/${mode.maxGuesses}` : `X/${mode.maxGuesses}`;
-  ctx.fillText(`Puzzle No. ${state.puzzleNum} · ${mode.name} · ${score}`, W / 2, 240);
+  // 4. Grid — starts ~108 px below metadata, occupies ~50% canvas height
+  const metaBottom = wordmarkBottom + 32 + metaTextSize;
+  const gridTop = metaBottom + 108;
+  const gridMaxHeight = Math.floor(H * 0.50);
+  const gridMaxWidth = W - 160; // safe horizontal margin
 
-  // Feedback grid — dots only
-  const guesses = t.guesses;
-  const cols = mode.slots;
-  const dotSize = Math.min(80, (W - 240) / cols);
-  const gap = 16;
-  const gridW = cols * dotSize + (cols - 1) * gap;
-  const gridH = guesses.length * dotSize + (guesses.length - 1) * gap;
-  const startX = (W - gridW) / 2;
-  const startY = 360 + Math.max(0, (520 - gridH) / 2);
+  const slots = gridState[0]?.feedback?.length || 0;
+  const rows = gridState.length;
 
-  const fbColours = {
-    correct: '#4e9c5d',
-    misplaced: '#d6a82e',
-    absent: '#d5cebd'
+  // Native dot size per spec; scale down (proportionally with gap) only if
+  // either dimension would exceed the budget. Extreme (6×8) is the case
+  // that actually triggers scaling.
+  let dotSize = 88, gap = 24;
+  if (rows > 0 && slots > 0) {
+    const heightAt = rows * dotSize + (rows - 1) * gap;
+    const widthAt = slots * dotSize + (slots - 1) * gap;
+    const scaleH = heightAt > gridMaxHeight ? gridMaxHeight / heightAt : 1;
+    const scaleW = widthAt > gridMaxWidth ? gridMaxWidth / widthAt : 1;
+    const scale = Math.min(1, scaleH, scaleW);
+    dotSize = Math.floor(dotSize * scale);
+    gap = Math.floor(gap * scale);
+  }
+
+  const gridWidth = slots * dotSize + (slots - 1) * gap;
+  const gridHeight = rows * dotSize + (rows - 1) * gap;
+  const gridX = Math.floor((W - gridWidth) / 2);
+
+  // Failed puzzles: greyscale palette so the shape of the grid is preserved
+  // but no positive-colour feedback signals are present. The answer is never
+  // rendered — only the player's own feedback rows.
+  const fbScheme = outcome === 'failed' ? {
+    correct: '#A8A8A8',
+    misplaced: '#BFBFBF',
+    absent: '#D8D8D8'
+  } : {
+    correct: '#4E9C5D',
+    misplaced: '#D6A82E',
+    absent: '#D5CEBD'
   };
 
-  guesses.forEach((g, r) => {
-    g.feedback.forEach((f, c) => {
-      const x = startX + c * (dotSize + gap) + dotSize / 2;
-      const y = startY + r * (dotSize + gap) + dotSize / 2;
+  for (let r = 0; r < rows; r++) {
+    const fbRow = gridState[r].feedback || [];
+    for (let c = 0; c < slots; c++) {
+      const fb = fbRow[c] || 'absent';
+      const x = gridX + c * (dotSize + gap) + dotSize / 2;
+      const y = gridTop + r * (dotSize + gap) + dotSize / 2;
 
-      // Soft drop shadow
-      ctx.fillStyle = 'rgba(20,17,12,0.10)';
-      ctx.beginPath();
-      ctx.arc(x, y + 4, dotSize / 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Body
-      ctx.fillStyle = fbColours[f] || '#d5cebd';
-      ctx.beginPath();
-      ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Specular highlight
-      const grad = ctx.createRadialGradient(x - dotSize * 0.18, y - dotSize * 0.22, 2, x, y, dotSize / 2);
-      grad.addColorStop(0, 'rgba(255,255,255,0.5)');
-      grad.addColorStop(0.5, 'rgba(255,255,255,0)');
-      ctx.fillStyle = grad;
+      // Drop shadow per spec: y-offset 4, blur 8, opacity 0.12
+      ctx.save();
+      ctx.shadowColor = 'rgba(20, 17, 12, 0.12)';
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 4;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = fbScheme[fb];
       ctx.beginPath();
       ctx.arc(x, y, dotSize / 2, 0, Math.PI * 2);
       ctx.fill();
-    });
+      ctx.restore();
+
+      // Colour-blind mode: render shape inside the dot. The shape signals
+      // the feedback type (●=correct, ◆=misplaced) and overrides colour.
+      // Absent dots have no shape — same as the in-game rendering.
+      if (colourBlind && fb !== 'absent') {
+        ctx.fillStyle = outcome === 'failed' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.95)';
+        ctx.font = `700 ${Math.round(dotSize * 0.42)}px ui-rounded, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const sym = fb === 'correct' ? '●' : '◆';
+        ctx.fillText(sym, x, y);
+      }
+    }
+  }
+
+  // 5. Result line — 96 px below grid
+  const gridBottom = gridTop + gridHeight;
+  const resultTextSize = 32;
+  const resultCenterY = gridBottom + 96 + resultTextSize / 2;
+  ctx.font = `700 ${resultTextSize}px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif`;
+  ctx.fillStyle = '#1F1F1F';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const resultText = outcome === 'solved' ? `Solved in ${guessCount}` : 'Try again tomorrow.';
+  ctx.fillText(resultText, W / 2, resultCenterY);
+
+  // 6. Horizontal rule — 32 px below result, 80 px wide, 2 px tall, #B8860B
+  const resultBottom = resultCenterY + resultTextSize / 2;
+  const ruleY = resultBottom + 32;
+  ctx.fillStyle = '#B8860B';
+  ctx.fillRect(Math.floor((W - 80) / 2), ruleY, 80, 2);
+
+  // 7. URL footer — 32 px below rule
+  const urlTextSize = 22;
+  const urlCenterY = ruleY + 2 + 32 + urlTextSize / 2;
+  ctx.font = `400 ${urlTextSize}px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif`;
+  ctx.fillStyle = '#6B6B6B';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('colourly.net', W / 2, urlCenterY);
+
+  // 8. Streak indicator (≥7 only) — small flame + number, bottom right
+  if (streakCount >= 7) {
+    const streakSize = 32;
+    ctx.font = `700 ${streakSize}px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#1F1F1F';
+    const streakText = `🔥 ${streakCount}`;
+    ctx.fillText(streakText, W - 80, H - 80);
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('toBlob failed')), 'image/png');
   });
-
-  // Footer
-  ctx.fillStyle = '#a59b8e';
-  ctx.font = '700 28px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
-  ctx.fillText('colourly.app', W / 2, H - 96);
-
-  ctx.fillStyle = '#15110c';
-  ctx.font = '800 36px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
-  const adj = t.won ? `Solved in ${t.guesses.length}` : 'Tomorrow, then';
-  ctx.fillText(adj, W / 2, H - 160);
 }
 
-function downloadShareImage(modeId) {
+// Rainbow wordmark on the share image. Each letter of COLOURLY takes one
+// palette colour in order, cycling for modes with fewer than 8 colours.
+function drawShareWordmark(ctx, W, centerY, paletteColours) {
+  const word = WORDMARK; // 'COLOURLY'
+  ctx.font = '900 120px ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  const letterSpacing = 8;
+  const widths = word.split('').map(ch => ctx.measureText(ch).width);
+  const totalW = widths.reduce((a, b) => a + b, 0) + letterSpacing * (word.length - 1);
+  let cursor = (W - totalW) / 2;
+  word.split('').forEach((ch, i) => {
+    ctx.fillStyle = paletteColours[i % paletteColours.length];
+    ctx.strokeStyle = 'rgba(20, 17, 12, 0.10)';
+    ctx.lineWidth = 1;
+    ctx.fillText(ch, cursor, centerY);
+    ctx.strokeText(ch, cursor, centerY);
+    cursor += widths[i] + letterSpacing;
+  });
+}
+
+// Build a puzzleState from the current in-game state for the active mode.
+function buildPuzzleStateFromGame(modeId) {
+  const mode = MODES[modeId];
+  const t = state.todayState[modeId];
+  const stats = state.modeStats[modeId];
+  const palette = coloursForMode(mode).map(c => c.rgb);
+  return {
+    puzzleNumber: state.puzzleNum,
+    modeName: mode.name,
+    guessCount: t.guesses.length,
+    maxGuesses: mode.maxGuesses,
+    paletteColours: palette,
+    gridState: t.guesses.map(g => ({ feedback: g.feedback })),
+    outcome: t.won ? 'solved' : 'failed',
+    streakCount: stats.streak,
+    colourBlind: state.cb
+  };
+}
+
+async function downloadShareImage(modeId) {
   const id = modeId || state.currentMode || state.selectedMode || 'standard';
   try {
-    renderShareCanvas(id);
-    const canvas = document.getElementById('shareCanvas');
-    canvas.toBlob(async (blob) => {
-      if (!blob) { showToast('Save failed'); return; }
-      const file = new File([blob], `colourly-${state.puzzleNum}.png`, { type: 'image/png' });
-      // Try native share with file (iOS Safari supports this)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Colourly' });
-          return;
-        } catch (e) { if (e.name === 'AbortError') return; }
-      }
-      // Fallback: download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `colourly-${state.puzzleNum}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast('Image saved');
-    }, 'image/png');
+    const blob = await generateShareImage(buildPuzzleStateFromGame(id));
+    const file = new File([blob], `colourly-${state.puzzleNum}.png`, { type: 'image/png' });
+    // Try native share with file (iOS Safari supports this)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'Colourly' });
+        return;
+      } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    // Fallback: download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `colourly-${state.puzzleNum}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Image saved');
   } catch (e) {
     showToast('Save failed');
   }
+}
+
+// Dev-only preview: ?devshare=1 renders the five required test cases into
+// visible images on top of the page so the renderer can be iterated visually.
+async function maybeRunDevSharePreview() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('devshare') !== '1') return;
+
+  const cases = [
+    { name: 'Beginner — solved in 3', mode: 'beginner', guessCount: 3, outcome: 'solved', streak: 0, cb: false },
+    { name: 'Easy — solved in 6', mode: 'easy', guessCount: 6, outcome: 'solved', streak: 0, cb: false },
+    { name: 'Medium — failed', mode: 'standard', guessCount: 6, outcome: 'failed', streak: 0, cb: false },
+    { name: 'Extreme — solved in 5, 12-day streak', mode: 'extreme', guessCount: 5, outcome: 'solved', streak: 12, cb: false },
+    { name: 'Hard — solved in 4, colour-blind on', mode: 'hard', guessCount: 4, outcome: 'solved', streak: 0, cb: true }
+  ];
+
+  const panel = document.createElement('div');
+  panel.className = 'devshare';
+  panel.innerHTML = '<h1>Share Image — Dev Preview</h1>';
+  document.body.appendChild(panel);
+
+  for (const c of cases) {
+    const wrap = document.createElement('div');
+    wrap.className = 'devshare-case';
+    wrap.innerHTML = `<h2>${c.name}</h2>`;
+    panel.appendChild(wrap);
+
+    const ps = makeMockPuzzleState(c);
+    const blob = await generateShareImage(ps);
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(blob);
+    img.alt = c.name;
+    wrap.appendChild(img);
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `mode=${c.mode} guesses=${c.guessCount}/${MODES[c.mode].maxGuesses} ` +
+                       `outcome=${c.outcome} streak=${c.streak} cb=${c.cb} ` +
+                       `palette=${ps.paletteColours.length} slots=${MODES[c.mode].slots}`;
+    wrap.appendChild(meta);
+  }
+}
+
+function makeMockPuzzleState({ mode, guessCount, outcome, streak, cb }) {
+  const m = MODES[mode];
+  const palette = coloursForMode(m).map(c => c.rgb);
+  const slots = m.slots;
+  const max = m.maxGuesses;
+  const rows = outcome === 'solved' ? guessCount : max;
+
+  // Deterministic pseudo-random feedback per (mode, row, col) so the dev
+  // preview is reproducible across reloads.
+  function det(seed) {
+    let x = seed | 0;
+    x = Math.imul(x, 1664525) + 1013904223;
+    return ((x >>> 0) % 1000) / 1000;
+  }
+  let s = (mode.length * 9301 + guessCount * 49297 + (streak || 1) * 7919) >>> 0;
+
+  const gridState = [];
+  for (let r = 0; r < rows; r++) {
+    const isLast = (r === rows - 1);
+    let feedback;
+    if (outcome === 'solved' && isLast) {
+      feedback = new Array(slots).fill('correct');
+    } else {
+      feedback = [];
+      // Increase odds of correct/misplaced as rows progress to feel realistic
+      const progress = (r + 1) / rows;
+      for (let c = 0; c < slots; c++) {
+        s = (s * 1103515245 + 12345) >>> 0;
+        const v = (s % 1000) / 1000;
+        const correctProb = 0.10 + progress * 0.30;
+        const misplacedProb = correctProb + 0.20 + progress * 0.10;
+        if (v < correctProb) feedback.push('correct');
+        else if (v < misplacedProb) feedback.push('misplaced');
+        else feedback.push('absent');
+      }
+    }
+    gridState.push({ feedback });
+  }
+
+  return {
+    puzzleNumber: 851,
+    modeName: m.name,
+    guessCount,
+    maxGuesses: max,
+    paletteColours: palette,
+    gridState,
+    outcome,
+    streakCount: streak,
+    colourBlind: cb
+  };
 }
 
 // Legacy direct-share: kept for the in-game Delete-as-Share button shortcut.
@@ -3044,6 +3241,9 @@ function init() {
     const newNum = getPuzzleNumber();
     if (newNum !== state.puzzleNum) location.reload();
   }, 30000);
+
+  // Dev-only share-image preview behind ?devshare=1
+  maybeRunDevSharePreview();
 }
 init();
 </script>
