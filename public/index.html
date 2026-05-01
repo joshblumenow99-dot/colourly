@@ -10,6 +10,35 @@
 <meta name="apple-mobile-web-app-title" content="Colourly">
 <title>Colourly — Daily Colour Puzzle</title>
 
+<!-- SEO + social previews. og:image points at icon-512 since the
+     deployed share-card image lives at /icons/icon-512.png; replace
+     with a dedicated 1200×630 OG image when one is produced. -->
+<meta name="description" content="A daily colour puzzle. Crack the secret sequence in six guesses. New hue every midnight, your local time.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://www.colourly.net/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Colourly">
+<meta property="og:title" content="Colourly — Daily Colour Puzzle">
+<meta property="og:description" content="A daily colour puzzle. Crack the secret sequence in six guesses. New hue every midnight.">
+<meta property="og:url" content="https://www.colourly.net/">
+<meta property="og:image" content="https://www.colourly.net/icons/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Colourly — Daily Colour Puzzle">
+<meta name="twitter:description" content="A daily colour puzzle. Crack the secret sequence in six guesses.">
+<meta name="twitter:image" content="https://www.colourly.net/icons/icon-512.png">
+
+<!-- ANALYTICS — Plausible (Section 11). Privacy-first: no cookies,
+     no cross-site tracking, no IP storage; the script is ~1KB and is
+     the ONLY external CDN script Colourly loads. This is a deliberate
+     exception to the "no third-party SDKs" rule — DO NOT remove it
+     in future cleanup passes. The data-domain string identifies the
+     site in the Plausible dashboard. Self-host alternative: change
+     src to your Plausible CE instance URL. -->
+<script defer data-domain="colourly.net" src="https://plausible.io/js/script.tagged-events.js"></script>
+<script>window.plausible = window.plausible || function(){(window.plausible.q = window.plausible.q || []).push(arguments)}</script>
+
 <!-- Section 11: PWA manifest. Provides name, icons, theme/background
      colours, and standalone display so Android/desktop can install
      Colourly as an app. -->
@@ -48,8 +77,12 @@
     --surface: #ffffff;
     --surface-warm: #fbf6e9;
     --ink: #15110c;
-    --ink-soft: #6c6359;
-    --ink-dim: #a59b8e;
+    /* Section 11 a11y: --ink-soft and --ink-dim were tightened so both
+       pass WCAG AA (4.5:1 for normal text) on the sepia background.
+       Old values: ink-soft #6c6359 (5.07:1), ink-dim #a59b8e (2.46:1 — failed).
+       New: ink-soft 7.31:1, ink-dim 5.05:1. Hierarchy preserved. */
+    --ink-soft: #574f44;
+    --ink-dim: #6e6859;
     --line: rgba(20, 17, 12, 0.07);
     --line-strong: rgba(20, 17, 12, 0.12);
     --slot-empty: #e8e1d2;
@@ -87,6 +120,14 @@
     }
     * { animation: none !important; transition: none !important; }
   }
+  /* Section 11 a11y: user-toggled reduce-motion mirrors the OS-level
+     preference. Settings → Reduce motion adds .reduce-motion to body. */
+  body.reduce-motion {
+    --duration-fast: 0s;
+    --duration: 0s;
+    --duration-slow: 0s;
+  }
+  body.reduce-motion * { animation: none !important; transition: none !important; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { -webkit-text-size-adjust: 100%; }
   body {
@@ -688,7 +729,10 @@
     display: flex; align-items: center; justify-content: center;
     position: relative;
     transition: background var(--duration-fast) var(--ease);
-    color: rgba(255,255,255,0.92);
+    /* Section 11 a11y: CB-mode symbols sit on top of palette colours.
+       Dark-on-vivid hits 5:1+ on every palette swatch (worst case red:
+       5.4:1); the old white-92% rendering on yellow was 1.83:1. */
+    color: var(--ink);
     font-weight: 700;
     font-size: 15px;
   }
@@ -1770,7 +1814,14 @@
         <div class="setting-name">Colour-blind mode</div>
         <div class="setting-desc">Adds shapes inside dots so colours aren't the only signal.</div>
       </div>
-      <div class="toggle" id="toggleCB" role="switch" aria-checked="false" tabindex="0"></div>
+      <div class="toggle" id="toggleCB" role="switch" aria-checked="false" tabindex="0" aria-label="Colour-blind mode"></div>
+    </div>
+    <div class="setting">
+      <div class="setting-info">
+        <div class="setting-name">Reduce motion</div>
+        <div class="setting-desc">Disables reveal, win-wave and confetti animations.</div>
+      </div>
+      <div class="toggle" id="toggleReduceMotion" role="switch" aria-checked="false" tabindex="0" aria-label="Reduce motion"></div>
     </div>
     <div class="setting" id="settingAch">
       <div class="setting-info">
@@ -1872,14 +1923,14 @@
 
 // ── Constants ─────────────────────────────────────────────
 const ALL_COLOURS = [
-  { id: 1, hex: 'var(--c-1)', rgb: '#d94e3c', sym: '●' },
-  { id: 2, hex: 'var(--c-2)', rgb: '#ed8a36', sym: '◆' },
-  { id: 3, hex: 'var(--c-3)', rgb: '#e8bd2a', sym: '▲' },
-  { id: 4, hex: 'var(--c-4)', rgb: '#4ea36a', sym: '★' },
-  { id: 5, hex: 'var(--c-5)', rgb: '#3b7eb6', sym: '■' },
-  { id: 6, hex: 'var(--c-6)', rgb: '#8a5cb0', sym: '✚' },
-  { id: 7, hex: 'var(--c-7)', rgb: '#36a4a4', sym: '◐' },
-  { id: 8, hex: 'var(--c-8)', rgb: '#d56ba1', sym: '♦' }
+  { id: 1, hex: 'var(--c-1)', rgb: '#d94e3c', sym: '●', name: 'red' },
+  { id: 2, hex: 'var(--c-2)', rgb: '#ed8a36', sym: '◆', name: 'orange' },
+  { id: 3, hex: 'var(--c-3)', rgb: '#e8bd2a', sym: '▲', name: 'yellow' },
+  { id: 4, hex: 'var(--c-4)', rgb: '#4ea36a', sym: '★', name: 'green' },
+  { id: 5, hex: 'var(--c-5)', rgb: '#3b7eb6', sym: '■', name: 'blue' },
+  { id: 6, hex: 'var(--c-6)', rgb: '#8a5cb0', sym: '✚', name: 'purple' },
+  { id: 7, hex: 'var(--c-7)', rgb: '#36a4a4', sym: '◐', name: 'teal' },
+  { id: 8, hex: 'var(--c-8)', rgb: '#d56ba1', sym: '♦', name: 'pink' }
 ];
 
 // MODES: internal id 'standard' is preserved for stable deterministic seeds
@@ -1929,6 +1980,11 @@ const state = {
   achievements: {},
   cb: false,
 
+  // Section 11 a11y: user-controllable reduce-motion override.
+  // Independent of the OS-level prefers-reduced-motion media query;
+  // either signal turns animations off via .reduce-motion on body.
+  reduceMotion: false,
+
   modeStats: {},
   history: {},                  // YYYY-MM-DD -> { highestSolved: 0..5 } for the lifetime grid
 
@@ -1971,7 +2027,14 @@ const state = {
 
   // Transient: count of freezes consumed in this load. The home view
   // surfaces a one-time "Streak saved — N freeze(s) used" toast if non-zero.
-  pendingFreezeToast: 0
+  pendingFreezeToast: 0,
+
+  // Section 11 analytics: time-to-first-solve baseline. firstActiveTimestamp
+  // is set on first init if null; firstSolveTimestamp is set on the first
+  // real solve. Both persisted; their delta is reported to Plausible
+  // exactly once when firstSolveTimestamp first lands.
+  firstActiveTimestamp: null,
+  firstSolveTimestamp: null
 };
 
 // Separate localStorage key for the one-time "How it works" auto-open.
@@ -2172,12 +2235,15 @@ function loadPersisted() {
     if (typeof data.totalXP === 'number') state.totalXP = data.totalXP;
     if (data.achievements && typeof data.achievements === 'object') state.achievements = data.achievements;
     if (typeof data.cb === 'boolean') state.cb = data.cb;
+    if (typeof data.reduceMotion === 'boolean') state.reduceMotion = data.reduceMotion;
     if (data.history && typeof data.history === 'object') state.history = data.history;
     if (typeof data.firstRealSolveDone === 'boolean') state.firstRealSolveDone = data.firstRealSolveDone;
     if (typeof data.streakFreezes === 'number') state.streakFreezes = Math.max(0, Math.min(3, data.streakFreezes | 0));
     if (typeof data.consecutivePlayDays === 'number') state.consecutivePlayDays = Math.max(0, data.consecutivePlayDays | 0);
     if (typeof data.lastPlayedPuzzle === 'number') state.lastPlayedPuzzle = data.lastPlayedPuzzle;
     if (typeof data.firstActivePuzzle === 'number') state.firstActivePuzzle = data.firstActivePuzzle;
+    if (typeof data.firstActiveTimestamp === 'number') state.firstActiveTimestamp = data.firstActiveTimestamp;
+    if (typeof data.firstSolveTimestamp === 'number') state.firstSolveTimestamp = data.firstSolveTimestamp;
     if (data.modeStats && typeof data.modeStats === 'object') {
       MODE_ORDER.forEach(id => {
         if (data.modeStats[id]) {
@@ -2221,6 +2287,12 @@ function loadPersisted() {
   // player (fresh install or no firstActivePuzzle persisted yet).
   // Days < firstActivePuzzle render as "untried" in the archive view.
   if (state.firstActivePuzzle === null) state.firstActivePuzzle = state.puzzleNum;
+
+  // Section 11 analytics: anchor the time-to-first-solve baseline on
+  // first ever load. Persisted via persist() the next time state mutates;
+  // even without that, the next load will re-anchor harmlessly because
+  // we won't overwrite a non-null value.
+  if (state.firstActiveTimestamp === null) state.firstActiveTimestamp = Date.now();
 
   // Section 9: streak freezes. Auto-consume on missed days. Runs BEFORE
   // the per-mode streak-reset check so a successful freeze can preserve
@@ -2294,6 +2366,7 @@ function persist() {
       totalXP: state.totalXP,
       achievements: state.achievements,
       cb: state.cb,
+      reduceMotion: state.reduceMotion,
       modeStats: state.modeStats,
       history: state.history,
       firstRealSolveDone: state.firstRealSolveDone,
@@ -2301,6 +2374,8 @@ function persist() {
       consecutivePlayDays: state.consecutivePlayDays,
       lastPlayedPuzzle: state.lastPlayedPuzzle,
       firstActivePuzzle: state.firstActivePuzzle,
+      firstActiveTimestamp: state.firstActiveTimestamp,
+      firstSolveTimestamp: state.firstSolveTimestamp,
       todayState: {
         puzzleNum: state.puzzleNum,
         modes: {}
@@ -2468,6 +2543,12 @@ function submitGuess() {
     showToast('Fill every slot first');
     return;
   }
+  // Section 11 analytics: stamp the start time on first guess of a daily.
+  // Used by handleWin/handleLoss to compute time_per_puzzle. Skipped for
+  // practice/archive since those don't represent a real-puzzle attempt.
+  if (!state.practiceActive && !state.archiveActive && t.guesses.length === 0 && !t.startedAt) {
+    t.startedAt = Date.now();
+  }
   const fb = computeFeedback(t.currentGuess, t.answer);
   const guessRecord = { colors: [...t.currentGuess], feedback: fb, rowAnimated: false };
   t.guesses.push(guessRecord);
@@ -2552,6 +2633,11 @@ function handleWin(rowIdx) {
     return;
   }
 
+  // Section 6/11: capture "was this the player's first real solve EVER"
+  // BEFORE we mutate played/won/etc — otherwise hasHadRealSolve() returns
+  // true after stats.played++ and the first-solve branches never fire.
+  const wasFirstRealSolve = !hasHadRealSolve();
+
   const stats = state.modeStats[mode.id];
   stats.played++;
   stats.won++;
@@ -2591,8 +2677,29 @@ function handleWin(rowIdx) {
   );
 
   // Section 6: progression UI is hidden until the first real solve.
-  const wasFirstRealSolve = !hasHadRealSolve();
+  // wasFirstRealSolve was captured at the top of this function.
   state.firstRealSolveDone = true;
+
+  // Section 11 analytics: time-to-first-solve, fired exactly once.
+  if (wasFirstRealSolve && state.firstActiveTimestamp && !state.firstSolveTimestamp) {
+    state.firstSolveTimestamp = Date.now();
+    track('time_to_first_solve', {
+      mode: mode.id,
+      seconds: Math.round((state.firstSolveTimestamp - state.firstActiveTimestamp) / 1000)
+    });
+  }
+
+  // Per-puzzle timing. Plausible aggregates these into avg/median.
+  const startedAt = t.startedAt || (t.guesses.length === 1 ? Date.now() : null);
+  const elapsedSec = startedAt ? Math.round((Date.now() - startedAt) / 1000) : null;
+  track('mode_completed', {
+    mode: mode.id,
+    guesses: rowIdx + 1,
+    seconds: elapsedSec,
+    streak: stats.streak
+  });
+  if (leveledUp) track('level_up', { level: levelAfter });
+  if (allModesToday) track('all_modes_today');
 
   persist();
 
@@ -2639,6 +2746,11 @@ function handleLoss() {
     stats.played++;
     stats.streak = 0;
     persist();
+    // Section 11 analytics: completion-rate denominator. Send mode_failed
+    // alongside mode_completed so Plausible can compute (completed /
+    // (completed + failed)) per mode.
+    const elapsedSec = t.startedAt ? Math.round((Date.now() - t.startedAt) / 1000) : null;
+    track('mode_failed', { mode: mode.id, seconds: elapsedSec });
   }
 
   renderGameControls();
@@ -2680,7 +2792,7 @@ function flashRow() {
 // fades automatically. prefers-reduced-motion collapses to a static
 // frame (animation is suppressed via the media query above).
 function showLevelUpCelebration(newLevel) {
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = isMotionReduced();
   const el = document.createElement('div');
   el.className = 'levelup';
   el.innerHTML = `
@@ -2697,7 +2809,7 @@ function showLevelUpCelebration(newLevel) {
 
 // ── Confetti ──────────────────────────────────────────────
 function burstConfetti() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (isMotionReduced()) return;
   const layer = document.createElement('div');
   layer.className = 'confetti-layer';
   const palette = ['#d94e3c','#ed8a36','#e8bd2a','#4ea36a','#3b7eb6','#8a5cb0','#36a4a4','#d56ba1'];
@@ -3038,6 +3150,13 @@ function renderModeStrip() {
 }
 
 function enterMode(id) {
+  // Section 11 analytics: only fire mode_started for a FRESH attempt
+  // (no prior guesses today and not yet solved). Continue / View Result
+  // shouldn't be counted as new starts.
+  const ts = state.todayState[id];
+  const stats = state.modeStats[id];
+  const isFreshStart = ts && ts.guesses.length === 0 && stats.lastSolvedPuzzle !== state.puzzleNum;
+  if (isFreshStart) track('mode_started', { mode: id });
   state.view = 'game';
   state.currentMode = id;
   state.selectedMode = id;
@@ -3171,15 +3290,23 @@ function renderGameBoard() {
   const board = document.getElementById('board');
   if (!board) return;
   board.innerHTML = '';
+  // Section 11 a11y: board is a grid; rows + slots get explicit roles
+  // and aria-labels with position info. Screen readers will announce
+  // "Row 2, slot 3, blue" rather than just "blue dot".
+  board.setAttribute('role', 'grid');
+  board.setAttribute('aria-label', `Guess board: ${mode.maxGuesses} rows of ${mode.slots} slots`);
 
   for (let i = 0; i < mode.maxGuesses; i++) {
     const row = document.createElement('div');
     row.className = 'row';
     row.dataset.row = i;
+    row.setAttribute('role', 'row');
+    row.setAttribute('aria-rowindex', String(i + 1));
     if (i === t.guesses.length && !t.gameOver) row.classList.add('current');
 
     const slots = document.createElement('div');
     slots.className = 'slots s' + mode.slots;
+    slots.setAttribute('role', 'presentation');
 
     let colours = [];
     let fb = new Array(mode.slots).fill('empty');
@@ -3195,25 +3322,41 @@ function renderGameBoard() {
     for (let s = 0; s < mode.slots; s++) {
       const slot = document.createElement('div');
       slot.className = 'slot';
+      slot.setAttribute('role', 'gridcell');
+      slot.setAttribute('aria-colindex', String(s + 1));
       const cid = colours[s];
       if (cid) {
         slot.classList.add('filled');
         const c = ALL_COLOURS.find(x => x.id === cid);
         slot.style.background = c.hex;
         if (state.cb) slot.textContent = c.sym;
+        slot.setAttribute('aria-label', `Row ${i + 1}, slot ${s + 1}, ${c.name}`);
       } else if (i === t.guesses.length && s === t.currentGuess.length && !t.gameOver) {
         slot.classList.add('cursor');
+        slot.setAttribute('aria-label', `Row ${i + 1}, slot ${s + 1}, empty (cursor here)`);
+      } else {
+        slot.setAttribute('aria-label', `Row ${i + 1}, slot ${s + 1}, empty`);
       }
       slots.appendChild(slot);
     }
 
     const fbWrap = document.createElement('div');
     fbWrap.className = 'feedback s' + mode.slots;
+    fbWrap.setAttribute('role', 'presentation');
     for (let s = 0; s < mode.slots; s++) {
       const dot = document.createElement('div');
       const f = fb[s];
       dot.className = 'fb-dot ' + (f === 'empty' ? '' : f);
       if (revealed && f !== 'empty') dot.classList.add('revealed');
+      // Section 11 a11y: feedback dots carry the most game-critical
+      // information after a guess submits. Position-tagged so SRs can
+      // narrate "Slot 1: correct, Slot 2: misplaced, ..." in order.
+      const fbWord = f === 'correct' ? 'correct'
+        : f === 'misplaced' ? 'wrong slot'
+        : f === 'absent' ? 'not in answer'
+        : 'no feedback yet';
+      dot.setAttribute('role', 'img');
+      dot.setAttribute('aria-label', `Slot ${s + 1} feedback: ${fbWord}`);
       fbWrap.appendChild(dot);
     }
 
@@ -3228,14 +3371,24 @@ function renderGamePalette() {
   const palette = document.getElementById('palette');
   if (!palette) return;
   palette.className = 'palette c' + mode.colours;
+  palette.setAttribute('role', 'toolbar');
+  palette.setAttribute('aria-label', 'Colour palette');
   palette.innerHTML = '';
   coloursForMode(mode).forEach(c => {
     const sw = document.createElement('button');
     sw.className = 'swatch';
     sw.style.background = c.hex;
-    sw.setAttribute('aria-label', `Colour ${c.id}`);
+    sw.type = 'button';
+    // Section 11 a11y: include the human colour name AND the keyboard
+    // shortcut so SR users can use either to pick.
+    sw.setAttribute('aria-label', `Pick ${c.name} (key ${c.id})`);
+    sw.setAttribute('aria-keyshortcuts', String(c.id));
     if (state.cb) sw.textContent = c.sym;
-    if (getCurrent().gameOver) sw.classList.add('disabled');
+    if (getCurrent().gameOver) {
+      sw.classList.add('disabled');
+      sw.setAttribute('aria-disabled', 'true');
+      sw.disabled = true;
+    }
     sw.onclick = () => addColour(c.id);
     palette.appendChild(sw);
   });
@@ -4029,6 +4182,9 @@ function logShareEvent(event, modeId, extra) {
     if (events.length > 200) events = events.slice(-200);
     localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
   } catch {}
+  // Section 11 analytics: mirror the existing localStorage debug log
+  // to Plausible. Property names match the analytics naming convention.
+  track(event, { mode: modeId, ...(extra || {}) });
 }
 
 // Single share entry point used by all three share buttons. When the V2
@@ -4177,12 +4333,40 @@ function applyCB() {
   }
   renderHowToExample();
 }
+
+// Section 11 a11y: apply the user's reduce-motion preference. The
+// .reduce-motion class on body short-circuits all timed animations,
+// transitions, and confetti. CSS rule lives alongside the @media
+// (prefers-reduced-motion: reduce) block so OS preference and user
+// preference share the same code path.
+function applyReduceMotion() {
+  document.body.classList.toggle('reduce-motion', state.reduceMotion);
+  const t = document.getElementById('toggleReduceMotion');
+  if (t) {
+    t.classList.toggle('on', state.reduceMotion);
+    t.setAttribute('aria-checked', state.reduceMotion);
+  }
+}
+
+function isMotionReduced() {
+  if (state.reduceMotion) return true;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return true;
+  return false;
+}
+
 function setupSettings() {
   const cb = document.getElementById('toggleCB');
   const flip = () => { state.cb = !state.cb; persist(); applyCB(); };
   cb.addEventListener('click', flip);
   cb.addEventListener('keydown', e => {
     if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+  });
+
+  const rm = document.getElementById('toggleReduceMotion');
+  const flipRM = () => { state.reduceMotion = !state.reduceMotion; persist(); applyReduceMotion(); };
+  rm.addEventListener('click', flipRM);
+  rm.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipRM(); }
   });
 
   document.getElementById('btnViewAch').onclick = () => { closeModal('modalSettings'); openModal('modalAch'); };
@@ -4196,6 +4380,9 @@ function setupSettings() {
     state.streakFreezes = 0;
     state.consecutivePlayDays = 0;
     state.lastPlayedPuzzle = -2;
+    state.firstActivePuzzle = state.puzzleNum;
+    state.firstActiveTimestamp = Date.now();
+    state.firstSolveTimestamp = null;
     try { localStorage.removeItem(HOW_IT_WORKS_KEY); } catch {}
     MODE_ORDER.forEach(id => state.modeStats[id] = defaultModeStats());
     initTodayState();
@@ -4230,9 +4417,10 @@ function setupKeyboard() {
       else if (e.key === 'Escape') goHome();
       return;
     }
-    if (e.key === 'Backspace') deleteLast();
+    if (e.key === 'Backspace' || e.key === 'ArrowLeft') deleteLast();
     else if (e.key === 'Enter') submitGuess();
     else if (e.key === 'Escape') goHome();
+    else if (e.key === 'ArrowRight') { /* fill-next-empty model: no cursor to advance */ }
     else {
       const num = parseInt(e.key, 10);
       const mode = getMode();
@@ -4248,6 +4436,22 @@ function renderApp() {
   if (state.view === 'home') renderHome();
   else renderGame();
   maybeShowA2HSPrompt();
+}
+
+// ── Section 11: Analytics ─────────────────────────────────
+//
+// Plausible is the single approved external script (see head).
+// track() is a thin wrapper that no-ops when the script hasn't
+// loaded (offline, blocked by an extension, etc) so the rest of
+// the app never branches on analytics availability. Property
+// values must be primitives — Plausible's free plan caps custom
+// props at strings/numbers/booleans.
+function track(event, props) {
+  try {
+    if (typeof window.plausible === 'function') {
+      window.plausible(event, props ? { props } : undefined);
+    }
+  } catch { /* never let analytics throw into game logic */ }
 }
 
 // ── Section 11: Add-to-Home-Screen prompt ─────────────────
@@ -4281,6 +4485,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('appinstalled', () => {
   try { localStorage.setItem(A2HS_INSTALLED_KEY, new Date().toISOString()); } catch {}
   deferredA2HSPrompt = null;
+  track('a2hs_accept', { surface: 'appinstalled_event' });
   hideA2HSPrompt();
 });
 
@@ -4346,8 +4551,10 @@ function showA2HSPrompt() {
   const body = document.getElementById('a2hsBody');
   const installBtn = document.getElementById('a2hsInstall');
 
+  let surface = 'desktop';
   if (deferredA2HSPrompt) {
     // Android / Chromium — real install possible.
+    surface = 'chromium';
     body.textContent = 'Install Colourly for one-tap access and full-screen play.';
     installBtn.hidden = false;
     installBtn.onclick = async () => {
@@ -4357,30 +4564,32 @@ function showA2HSPrompt() {
         deferredA2HSPrompt = null;
         if (choice && choice.outcome === 'accepted') {
           try { localStorage.setItem(A2HS_INSTALLED_KEY, new Date().toISOString()); } catch {}
+          track('a2hs_accept', { surface: 'chromium' });
         } else {
-          // User dismissed the native prompt — apply our cooldown.
           try { localStorage.setItem(A2HS_DISMISS_KEY, new Date().toISOString()); } catch {}
+          track('a2hs_dismiss', { surface: 'chromium', source: 'native_prompt' });
         }
       } catch (e) { /* swallow — we'll fall back to the cooldown via Not now */ }
       hideA2HSPrompt();
     };
   } else if (isIOSSafari()) {
-    // iOS Safari — show the manual flow.
+    surface = 'ios_safari';
     body.innerHTML = 'Tap <kbd>Share</kbd> in Safari, then <kbd>Add to Home Screen</kbd>.';
     installBtn.hidden = true;
   } else {
-    // Other desktop browsers — generic copy.
     body.textContent = 'Add Colourly to your home screen for one-tap access.';
     installBtn.hidden = true;
   }
 
   document.getElementById('a2hsDismiss').onclick = () => {
     try { localStorage.setItem(A2HS_DISMISS_KEY, new Date().toISOString()); } catch {}
+    track('a2hs_dismiss', { surface, source: 'not_now' });
     hideA2HSPrompt();
   };
 
   sheet.setAttribute('aria-hidden', 'false');
   sheet.classList.add('open');
+  track('a2hs_show', { surface });
 }
 
 function hideA2HSPrompt() {
@@ -4396,6 +4605,7 @@ function init() {
   initTodayState();
   loadPersisted();
   applyCB();
+  applyReduceMotion();
   setupSettings();
   setupKeyboard();
 
