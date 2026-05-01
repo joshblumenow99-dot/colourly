@@ -459,6 +459,140 @@
     padding-top: 24px;
   }
 
+  /* Section 10: Practice + Archive entry cards on the home screen. */
+  .home-extras {
+    display: flex;
+    gap: 10px;
+    margin: 22px 0 0;
+    padding: 0 4px;
+  }
+  .extra-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--line-strong, rgba(0,0,0,0.08));
+    border-radius: 14px;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    transition: transform var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+  }
+  .extra-card:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+  .extra-card:active { transform: translateY(0); }
+  .extra-card.locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .extra-card.locked:hover { transform: none; box-shadow: none; }
+  .extra-icon {
+    flex: 0 0 auto;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .extra-text { min-width: 0; }
+  .extra-title {
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.1;
+  }
+  .extra-sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--ink-dim);
+    line-height: 1.25;
+  }
+
+  /* Picker modals (practice mode + archive day mode). */
+  .picker-sub {
+    text-align: center;
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin: -4px 0 12px;
+  }
+  .picker-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .picker-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 12px 14px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--line-strong, rgba(0,0,0,0.08));
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    transition: transform var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
+  }
+  .picker-mode:hover { transform: translateY(-1px); border-color: var(--ink, #15110c); }
+  .picker-mode.done { opacity: 0.7; }
+  .picker-mode-name { font-weight: 600; font-size: 14px; }
+  .picker-mode-spec { font-size: 11px; color: var(--ink-dim); }
+
+  /* Archive list — dot + date + status pill per row. */
+  .archive-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .archive-empty {
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-dim);
+    padding: 24px 8px;
+  }
+  .archive-row {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--line-strong, rgba(0,0,0,0.06));
+    border-radius: 10px;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    transition: transform var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
+  }
+  .archive-row:hover { transform: translateY(-1px); border-color: var(--ink, #15110c); }
+  .archive-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--line-strong, #ddd);
+  }
+  .archive-dot.solved  { background: var(--fb-correct, #4ea36a); }
+  .archive-dot.missed  { background: var(--c-1, #d94e3c); opacity: 0.7; }
+  .archive-dot.untried { background: var(--line-strong, #ddd); }
+  .archive-date { font-size: 13px; font-weight: 500; }
+  .archive-num  { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.5px; }
+  .archive-status {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 99px;
+    background: var(--line-strong, rgba(0,0,0,0.06));
+    color: var(--ink-dim);
+  }
+  .archive-status.solved  { background: rgba(78, 163, 106, 0.15); color: #2f7a4d; }
+  .archive-status.missed  { background: rgba(217, 78, 60, 0.15); color: #a53b2c; }
+  .archive-status.untried { background: rgba(0,0,0,0.05); color: var(--ink-dim); }
+
   /* ── Game board ─────────────────────────────────────── */
   .game-header {
     text-align: center;
@@ -1565,6 +1699,48 @@
   </div>
 </div>
 
+<!-- Section 10: Practice mode picker (fresh non-deterministic puzzle). -->
+<div class="modal-backdrop" id="modalPracticePicker">
+  <div class="modal" role="dialog" aria-labelledby="practicePickerTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="practicePickerTitle">Practice</div>
+      <button class="modal-close" data-close aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="picker-sub">Fresh puzzle. No XP, no streak.</div>
+    <div class="picker-grid" id="practicePickerGrid"></div>
+  </div>
+</div>
+
+<!-- Section 10: Archive — past daily puzzles, half XP. -->
+<div class="modal-backdrop" id="modalArchive">
+  <div class="modal" role="dialog" aria-labelledby="archiveTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="archiveTitle">Archive</div>
+      <button class="modal-close" data-close aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="picker-sub">Past daily puzzles. 50% XP, no streak.</div>
+    <div class="archive-list" id="archiveList"></div>
+  </div>
+</div>
+
+<!-- Section 10: Mode picker for archive day (shown after a date is tapped). -->
+<div class="modal-backdrop" id="modalArchiveMode">
+  <div class="modal" role="dialog" aria-labelledby="archiveModeTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="archiveModeTitle">Pick a mode</div>
+      <button class="modal-close" data-close aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="picker-sub" id="archiveModeSub"></div>
+    <div class="picker-grid" id="archiveModeGrid"></div>
+  </div>
+</div>
+
 
 <script>
 'use strict';
@@ -1636,11 +1812,25 @@ const state = {
 
   todayState: {},
 
-  // Practice replay session — non-canonical, no XP, no streak credit.
-  // Active when the player taps "Replay {mode} →" on the result screen
-  // for a mode they've already solved today.
+  // Practice session — non-canonical, no XP, no streak credit.
+  // Two flavours, both share the same state plumbing:
+  //   - replay-today: result-modal CTA, deterministic seed = today's puzzleNum
+  //   - fresh: home Practice card, non-deterministic seed (Section 10)
   practiceActive: false,
   practiceState: null,
+
+  // Archive session (Section 10) — replaying a past daily puzzle.
+  // Grants 50% XP (rounded), no streak credit. Solving an archive
+  // puzzle marks that day as solved for that mode in solvedPuzzles.
+  archiveActive: false,
+  archivePuzzleNum: null,
+  archiveState: null,
+
+  // The puzzleNum the player first opened the app on. Used by the
+  // archive view to distinguish "missed" (active and didn't solve)
+  // from "untried" (wasn't using the app yet). Set on first init
+  // if not already persisted.
+  firstActivePuzzle: null,
 
   // Has the player completed at least one real (non-practice,
   // non-archive) puzzle? Persisted so progression UI stays visible
@@ -1683,9 +1873,17 @@ function todayKey() {
 }
 
 function generateAnswer(puzzleNum, mode) {
-  // Deterministic seed: puzzle number mixed with mode id.
+  return generateAnswerFromSeed(puzzleNum, mode);
+}
+
+// Seed-parameterised generator. Daily puzzles seed with puzzleNum;
+// archive replays seed with the past puzzleNum (so the player gets
+// the same answer the world had that day); fresh practice seeds
+// with a non-deterministic random number.
+function generateAnswerFromSeed(seedNum, mode) {
+  // Deterministic seed: seed mixed with mode id.
   // mode.id stays 'standard' (not 'medium') to keep historical seeds stable.
-  let seedBits = puzzleNum * 9301 + 49297;
+  let seedBits = seedNum * 9301 + 49297;
   for (let i = 0; i < mode.id.length; i++) {
     seedBits = (seedBits * 31 + mode.id.charCodeAt(i)) >>> 0;
   }
@@ -1713,6 +1911,37 @@ function formatPuzzleDate() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const d = new Date();
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+// Date label for an arbitrary past puzzleNum, computed by walking
+// (puzzleNum - 1) days forward from the epoch. Local-midnight math
+// matches getPuzzleNumber() so the round-trip is exact.
+function formatPastPuzzleDate(puzzleNum) {
+  const d = new Date(EPOCH_YEAR, EPOCH_MONTH, EPOCH_DAY);
+  d.setDate(d.getDate() + (puzzleNum - 1));
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+// True if the player has solved any mode of today's daily puzzle.
+// Gates Practice mode per Section 10.
+function dailySolvedToday() {
+  return MODE_ORDER.some(id => state.modeStats[id].lastSolvedPuzzle === state.puzzleNum);
+}
+
+// Has any mode marked this puzzleNum as solved (daily or archive)?
+function anyModeSolvedPuzzle(puzzleNum) {
+  return MODE_ORDER.some(id => (state.modeStats[id].solvedPuzzles || []).includes(puzzleNum));
+}
+
+// 'solved' | 'missed' | 'untried' for the archive list. Solved wins
+// regardless of when the player started — solving an old "untried"
+// day in archive flips it to 'solved' rather than leaving it greyed.
+function archiveDayStatus(puzzleNum) {
+  if (anyModeSolvedPuzzle(puzzleNum)) return 'solved';
+  const first = state.firstActivePuzzle || state.puzzleNum;
+  if (puzzleNum < first) return 'untried';
+  return 'missed';
 }
 
 function computeFeedback(guess, answer) {
@@ -1794,7 +2023,7 @@ function modeIconSVG(modeId) {
 
 // ── Persistence ───────────────────────────────────────────
 function defaultModeStats() {
-  return { played: 0, won: 0, streak: 0, bestStreak: 0, lastSolvedPuzzle: -2, distribution: [0,0,0,0,0,0,0,0] };
+  return { played: 0, won: 0, streak: 0, bestStreak: 0, lastSolvedPuzzle: -2, distribution: [0,0,0,0,0,0,0,0], solvedPuzzles: [] };
 }
 
 // One-time migration from hue.v2 to colourly.v1.
@@ -1813,7 +2042,7 @@ function loadPersisted() {
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) throw 'no-state';
     const data = JSON.parse(raw);
     if (typeof data.totalXP === 'number') state.totalXP = data.totalXP;
     if (data.achievements && typeof data.achievements === 'object') state.achievements = data.achievements;
@@ -1823,6 +2052,7 @@ function loadPersisted() {
     if (typeof data.streakFreezes === 'number') state.streakFreezes = Math.max(0, Math.min(3, data.streakFreezes | 0));
     if (typeof data.consecutivePlayDays === 'number') state.consecutivePlayDays = Math.max(0, data.consecutivePlayDays | 0);
     if (typeof data.lastPlayedPuzzle === 'number') state.lastPlayedPuzzle = data.lastPlayedPuzzle;
+    if (typeof data.firstActivePuzzle === 'number') state.firstActivePuzzle = data.firstActivePuzzle;
     if (data.modeStats && typeof data.modeStats === 'object') {
       MODE_ORDER.forEach(id => {
         if (data.modeStats[id]) {
@@ -1831,10 +2061,17 @@ function loadPersisted() {
             const d = state.modeStats[id].distribution || [];
             state.modeStats[id].distribution = [0,0,0,0,0,0,0,0].map((_, i) => d[i] || 0);
           }
+          // Section 10: backfill solvedPuzzles for legacy players. We
+          // can only recover the most recent solved puzzleNum; older
+          // wins will appear "missed" in the archive view, which is
+          // acceptable since we genuinely don't have that data.
+          if (!Array.isArray(state.modeStats[id].solvedPuzzles)) state.modeStats[id].solvedPuzzles = [];
+          if (state.modeStats[id].solvedPuzzles.length === 0 && state.modeStats[id].lastSolvedPuzzle > 0) {
+            state.modeStats[id].solvedPuzzles = [state.modeStats[id].lastSolvedPuzzle];
+          }
         }
       });
     }
-
     if (data.todayState && data.todayState.puzzleNum === state.puzzleNum && data.todayState.modes) {
       MODE_ORDER.forEach(id => {
         const saved = data.todayState.modes[id];
@@ -1851,7 +2088,14 @@ function loadPersisted() {
         }
       });
     }
-  } catch (e) { console.warn('Colourly: storage read failed', e); }
+  } catch (e) {
+    if (e !== 'no-state') console.warn('Colourly: storage read failed', e);
+  }
+
+  // Section 10: anchor "untried" boundary the first time we see this
+  // player (fresh install or no firstActivePuzzle persisted yet).
+  // Days < firstActivePuzzle render as "untried" in the archive view.
+  if (state.firstActivePuzzle === null) state.firstActivePuzzle = state.puzzleNum;
 
   // Section 9: streak freezes. Auto-consume on missed days. Runs BEFORE
   // the per-mode streak-reset check so a successful freeze can preserve
@@ -1931,6 +2175,7 @@ function persist() {
       streakFreezes: state.streakFreezes,
       consecutivePlayDays: state.consecutivePlayDays,
       lastPlayedPuzzle: state.lastPlayedPuzzle,
+      firstActivePuzzle: state.firstActivePuzzle,
       todayState: {
         puzzleNum: state.puzzleNum,
         modes: {}
@@ -2025,6 +2270,7 @@ function initTodayState() {
 
 // ── Game actions ──────────────────────────────────────────
 function getCurrent() {
+  if (state.archiveActive) return state.archiveState;
   if (state.practiceActive) return state.practiceState;
   return state.todayState[state.currentMode];
 }
@@ -2118,7 +2364,7 @@ function submitGuess() {
     } else if (isLast) {
       handleLoss();
     } else {
-      if (!state.practiceActive) persist();
+      if (!state.practiceActive && !state.archiveActive) persist();
       renderGameControls();
     }
   });
@@ -2149,6 +2395,38 @@ function handleWin(rowIdx) {
     return;
   }
 
+  if (state.archiveActive) {
+    // Section 10: archive solve grants 50% XP, NO streak credit, no
+    // freeze accrual, no all-modes-today achievement. Marks the past
+    // puzzle as solved for this mode so the archive list flips that
+    // day's pill from missed → solved.
+    const stats = state.modeStats[mode.id];
+    const xpGain = Math.round(calculateXPGain(mode, rowIdx + 1, stats.streak) * 0.5);
+    t.xpEarned = xpGain;
+    const levelBefore = levelForXP(state.totalXP);
+    state.totalXP += xpGain;
+    const levelAfter = levelForXP(state.totalXP);
+    const leveledUp = levelAfter > levelBefore;
+
+    if (!stats.solvedPuzzles.includes(state.archivePuzzleNum)) {
+      stats.solvedPuzzles.push(state.archivePuzzleNum);
+    }
+
+    persist();
+    showXPPop(xpGain);
+    renderXPBar();
+    renderGameControls();
+    renderEndState();
+    setTimeout(() => {
+      burstConfetti();
+      openResultModal();
+    }, 1400);
+    if (leveledUp) {
+      setTimeout(() => showLevelUpCelebration(levelAfter), 2000);
+    }
+    return;
+  }
+
   const stats = state.modeStats[mode.id];
   stats.played++;
   stats.won++;
@@ -2156,6 +2434,7 @@ function handleWin(rowIdx) {
   if (stats.lastSolvedPuzzle === state.puzzleNum - 1) stats.streak++;
   else stats.streak = 1;
   stats.lastSolvedPuzzle = state.puzzleNum;
+  if (!stats.solvedPuzzles.includes(state.puzzleNum)) stats.solvedPuzzles.push(state.puzzleNum);
   if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
 
   // Section 9: track global consecutive-play-days and award a freeze
@@ -2230,7 +2509,7 @@ function handleLoss() {
     rowEl.classList.add('shake');
   }
 
-  if (!state.practiceActive) {
+  if (!state.practiceActive && !state.archiveActive) {
     const stats = state.modeStats[mode.id];
     stats.played++;
     stats.streak = 0;
@@ -2430,6 +2709,8 @@ function renderHome() {
 
       <div class="mode-strip" id="modeStrip"></div>
 
+      <div class="home-extras" id="homeExtras"></div>
+
       <div class="home-footer">A new colour each midnight, your local time.</div>
     </div>
   `;
@@ -2446,6 +2727,127 @@ function renderHome() {
   positionSegIndicator();
   renderModePanel();
   renderModeStrip();
+  renderHomeExtras();
+}
+
+// Section 10: Practice + Archive entry points on the home screen.
+// Practice is locked until the player has solved today's daily in
+// at least one mode. Archive only appears once at least one past
+// daily puzzle exists (i.e. puzzleNum >= 2).
+function renderHomeExtras() {
+  const wrap = document.getElementById('homeExtras');
+  if (!wrap) return;
+  const practiceUnlocked = dailySolvedToday();
+  const showArchive = state.puzzleNum >= 2;
+
+  const practiceCard = `
+    <button class="extra-card practice-card${practiceUnlocked ? '' : ' locked'}" id="extraPractice"
+            ${practiceUnlocked ? '' : 'aria-disabled="true"'}>
+      <div class="extra-icon" aria-hidden="true">${practiceUnlocked ? '🎯' : '🔒'}</div>
+      <div class="extra-text">
+        <div class="extra-title">Practice</div>
+        <div class="extra-sub">${practiceUnlocked
+          ? 'Fresh puzzles, no XP or streak.'
+          : "Solve today's daily to unlock practice."}</div>
+      </div>
+    </button>
+  `;
+  const archiveCard = showArchive ? `
+    <button class="extra-card archive-card" id="extraArchive">
+      <div class="extra-icon" aria-hidden="true">📅</div>
+      <div class="extra-text">
+        <div class="extra-title">Archive</div>
+        <div class="extra-sub">Past daily puzzles, 50% XP.</div>
+      </div>
+    </button>
+  ` : '';
+
+  wrap.innerHTML = practiceCard + archiveCard;
+
+  const pBtn = document.getElementById('extraPractice');
+  if (pBtn && practiceUnlocked) pBtn.onclick = () => openPracticePicker();
+  const aBtn = document.getElementById('extraArchive');
+  if (aBtn) aBtn.onclick = () => openArchive();
+}
+
+// Section 10: Practice picker — choose any mode, fresh seed.
+function openPracticePicker() {
+  if (!dailySolvedToday()) return; // belt-and-braces guard
+  const grid = document.getElementById('practicePickerGrid');
+  grid.innerHTML = MODE_ORDER.map(id => {
+    const m = MODES[id];
+    return `<button class="picker-mode" data-mode="${id}">
+      <div class="picker-mode-name">${m.name}</div>
+      <div class="picker-mode-spec">${m.slots} slots · ${m.colours} colours</div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.picker-mode').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.mode;
+      closeModal('modalPracticePicker');
+      enterModePractice(id, true);
+    };
+  });
+  openModal('modalPracticePicker');
+}
+
+// Section 10: Archive — list of past daily puzzles.
+function openArchive() {
+  renderArchiveList();
+  openModal('modalArchive');
+}
+
+function renderArchiveList() {
+  const list = document.getElementById('archiveList');
+  if (!list) return;
+  // Most-recent-first, excluding today (today is the daily card).
+  const entries = [];
+  for (let n = state.puzzleNum - 1; n >= 1; n--) entries.push(n);
+  if (entries.length === 0) {
+    list.innerHTML = `<div class="archive-empty">No past puzzles yet — come back tomorrow.</div>`;
+    return;
+  }
+  list.innerHTML = entries.map(n => {
+    const status = archiveDayStatus(n);
+    const label = formatPastPuzzleDate(n);
+    const tagText = status === 'solved' ? 'Solved' : status === 'missed' ? 'Missed' : 'Untried';
+    return `<button class="archive-row" data-puzzle="${n}">
+      <span class="archive-dot ${status}" aria-hidden="true"></span>
+      <span class="archive-date">${label}</span>
+      <span class="archive-num">No. ${n}</span>
+      <span class="archive-status ${status}">${tagText}</span>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('.archive-row').forEach(btn => {
+    btn.onclick = () => {
+      const n = parseInt(btn.dataset.puzzle, 10);
+      closeModal('modalArchive');
+      openArchiveModePicker(n);
+    };
+  });
+}
+
+function openArchiveModePicker(pastPuzzleNum) {
+  const sub = document.getElementById('archiveModeSub');
+  if (sub) sub.textContent = `${formatPastPuzzleDate(pastPuzzleNum)} · No. ${pastPuzzleNum} · 50% XP, no streak.`;
+  const grid = document.getElementById('archiveModeGrid');
+  grid.innerHTML = MODE_ORDER.map(id => {
+    const m = MODES[id];
+    const stats = state.modeStats[id];
+    const alreadySolved = stats.solvedPuzzles.includes(pastPuzzleNum);
+    return `<button class="picker-mode${alreadySolved ? ' done' : ''}" data-mode="${id}">
+      <div class="picker-mode-name">${m.name}${alreadySolved ? ' ✓' : ''}</div>
+      <div class="picker-mode-spec">${m.slots} slots · ${m.colours} colours</div>
+    </button>`;
+  }).join('');
+  grid.querySelectorAll('.picker-mode').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.mode;
+      closeModal('modalArchiveMode');
+      enterModeArchive(id, pastPuzzleNum);
+    };
+  });
+  openModal('modalArchiveMode');
 }
 
 function positionSegIndicator() {
@@ -2516,19 +2918,57 @@ function enterMode(id) {
   state.selectedMode = id;
   state.practiceActive = false;
   state.practiceState = null;
+  state.archiveActive = false;
+  state.archivePuzzleNum = null;
+  state.archiveState = null;
   renderApp();
 }
 
-// Practice replay: same date's puzzle, fresh in-game state, transient.
-// No XP, no streak credit, never persisted.
-function enterModePractice(id) {
+// Practice — non-canonical, no XP, no streak credit.
+//
+// Two flavours:
+//   - useFreshSeed=false (default): replay TODAY's puzzle. Used by the
+//     post-solve "Replay {mode}" CTA in the result modal so the player
+//     can attempt a mode they've already locked in.
+//   - useFreshSeed=true: generate a brand-new puzzle off a non-deterministic
+//     seed (Section 10). Used by the home Practice card. Locked until
+//     the player has solved today's daily in at least one mode.
+function enterModePractice(id, useFreshSeed) {
   const mode = MODES[id];
+  const seed = useFreshSeed ? (Math.floor(Math.random() * 1e9) + 1e6) : state.puzzleNum;
   state.view = 'game';
   state.currentMode = id;
   state.selectedMode = id;
   state.practiceActive = true;
   state.practiceState = {
-    answer: generateAnswer(state.puzzleNum, mode),
+    answer: generateAnswerFromSeed(seed, mode),
+    guesses: [],
+    currentGuess: [],
+    gameOver: false,
+    won: false,
+    busy: false,
+    xpEarned: 0,
+    isFreshPractice: !!useFreshSeed
+  };
+  state.archiveActive = false;
+  state.archivePuzzleNum = null;
+  state.archiveState = null;
+  renderApp();
+}
+
+// Archive replay (Section 10) — past daily puzzle, deterministic
+// seed = pastPuzzleNum, half XP on solve, no streak credit.
+function enterModeArchive(id, pastPuzzleNum) {
+  const mode = MODES[id];
+  state.view = 'game';
+  state.currentMode = id;
+  state.selectedMode = id;
+  state.practiceActive = false;
+  state.practiceState = null;
+  state.archiveActive = true;
+  state.archivePuzzleNum = pastPuzzleNum;
+  state.archiveState = {
+    answer: generateAnswerFromSeed(pastPuzzleNum, mode),
     guesses: [],
     currentGuess: [],
     gameOver: false,
@@ -2544,6 +2984,9 @@ function goHome() {
   state.currentMode = null;
   state.practiceActive = false;
   state.practiceState = null;
+  state.archiveActive = false;
+  state.archivePuzzleNum = null;
+  state.archiveState = null;
   renderApp();
 }
 
@@ -2551,9 +2994,20 @@ function goHome() {
 function renderGame() {
   const mode = getMode();
   const main = document.getElementById('main');
+  // Section 10: header label for non-daily contexts.
+  let headerLabel;
+  if (state.archiveActive) {
+    headerLabel = `Archive · Puzzle No. ${state.archivePuzzleNum} · ${formatPastPuzzleDate(state.archivePuzzleNum)}`;
+  } else if (state.practiceActive) {
+    headerLabel = state.practiceState && state.practiceState.isFreshPractice
+      ? 'Practice · Fresh puzzle'
+      : `Practice · Puzzle No. ${state.puzzleNum}`;
+  } else {
+    headerLabel = `Puzzle No. ${state.puzzleNum}`;
+  }
   main.innerHTML = `
     <div class="game-header">
-      <div class="game-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
+      <div class="game-puzzle-num">${headerLabel}</div>
       <div class="game-mode-label">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
     </div>
     <div class="board" id="board"></div>
@@ -2566,8 +3020,13 @@ function renderGame() {
   `;
   document.getElementById('btnDelete').onclick = () => {
     const t = getCurrent();
-    if (t.gameOver) handleShareClick();
-    else deleteLast();
+    if (t.gameOver) {
+      // Section 10: practice/archive don't share — go home instead.
+      if (state.practiceActive || state.archiveActive) goHome();
+      else handleShareClick();
+    } else {
+      deleteLast();
+    }
   };
   document.getElementById('btnEnter').onclick = () => {
     const t = getCurrent();
@@ -2667,7 +3126,7 @@ function renderGameControls() {
   if (t.gameOver) {
     enter.textContent = 'Result';
     enter.disabled = false;
-    del.textContent = 'Share';
+    del.textContent = (state.practiceActive || state.archiveActive) ? 'Home' : 'Share';
     del.disabled = false;
   } else {
     enter.textContent = 'Enter';
@@ -2893,10 +3352,18 @@ function openResultModal() {
        t.guesses.length === 4 ? 'Splendid' :
        t.guesses.length === 5 ? 'Great' : 'Phew')
     : 'Better luck tomorrow';
+  // Section 10: sub line reflects the actual puzzle number for archive
+  // replays so screenshots / shares can't accidentally claim today's puzzle.
+  const subPuzzleLabel = state.archiveActive
+    ? `Puzzle No. ${state.archivePuzzleNum}`
+    : `Puzzle No. ${state.puzzleNum}`;
   const sub = t.won
-    ? `Puzzle No. ${state.puzzleNum} · ${mode.name} · ${t.guesses.length}/${mode.maxGuesses}`
-    : `Puzzle No. ${state.puzzleNum} · ${mode.name}`;
-  const practiceTag = state.practiceActive ? `<div style="text-align:center;"><span class="result-practice-tag">Practice</span></div>` : '';
+    ? `${subPuzzleLabel} · ${mode.name} · ${t.guesses.length}/${mode.maxGuesses}`
+    : `${subPuzzleLabel} · ${mode.name}`;
+  let tagText = '';
+  if (state.archiveActive) tagText = 'Archive · 50% XP';
+  else if (state.practiceActive) tagText = 'Practice';
+  const practiceTag = tagText ? `<div style="text-align:center;"><span class="result-practice-tag">${tagText}</span></div>` : '';
 
   // Best mode beaten today
   const bestModeIdx = MODE_ORDER.reduce((acc, id, idx) =>
@@ -2914,13 +3381,23 @@ function openResultModal() {
   // Section 7: Share is the primary CTA. Try-next-mode is a secondary
   // text link below — never a primary button. After Extreme, the link
   // disappears entirely (V3 will replace it with "View today's stats").
-  const cta = nextModeCTA(mode.id);
+  // Section 10: practice/archive solves don't show the next-mode CTA
+  // (no ladder progression in those contexts) and don't show Share
+  // (would build text from today's state and misrepresent the result).
+  const isAlt = state.practiceActive || state.archiveActive;
+  const cta = isAlt ? null : nextModeCTA(mode.id);
   const ctaHTML = cta
     ? `<button class="result-next-mode" id="resultNextMode" type="button" aria-label="${cta.label}">${cta.label}</button>`
     : '';
+  const shareHTML = isAlt
+    ? `<button class="btn" id="resultBackHome">Back to home</button>`
+    : `<button class="btn primary" id="resultShare">Share</button>`;
 
-  // In practice mode the +XP card would lie about a non-event; show 0.
-  const xpDisplay = (t.won && !state.practiceActive) ? '+' + t.xpEarned : '0';
+  // Practice always shows 0 (no XP). Archive shows the half-XP value.
+  // Daily shows the full grant.
+  const xpDisplay = state.practiceActive
+    ? '0'
+    : (t.won ? '+' + t.xpEarned : '0');
 
   const body = document.getElementById('resultBody');
   body.innerHTML = `
@@ -2943,12 +3420,16 @@ function openResultModal() {
       </div>
     </div>
     <div class="result-actions">
-      <button class="btn primary" id="resultShare">Share</button>
+      ${shareHTML}
     </div>
     ${ctaHTML}
     <div class="result-next">Next Puzzle<span class="countdown" id="countdownResult">--:--:--</span></div>
   `;
-  document.getElementById('resultShare').onclick = () => { closeModal('modalResult'); handleShareClick(); };
+  if (isAlt) {
+    document.getElementById('resultBackHome').onclick = () => { closeModal('modalResult'); goHome(); };
+  } else {
+    document.getElementById('resultShare').onclick = () => { closeModal('modalResult'); handleShareClick(); };
+  }
   if (cta) {
     document.getElementById('resultNextMode').onclick = () => {
       closeModal('modalResult');
