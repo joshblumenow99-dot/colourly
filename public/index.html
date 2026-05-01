@@ -345,23 +345,18 @@
     margin-bottom: 18px;
   }
   .mode-icon {
-    width: 60px; height: 60px;
+    width: 64px; height: 64px;
     border-radius: 14px;
-    display: grid;
-    grid-template-columns: repeat(3, 12px);
-    grid-template-rows: repeat(2, 12px);
-    gap: 4px;
-    padding: 10px;
     background: rgba(20, 17, 12, 0.04);
     flex-shrink: 0;
-    place-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
   }
-  .mode-icon span {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.18), inset 0 1px 1px rgba(255,255,255,0.4);
-  }
+  .mode-icon.wide { width: 72px; }
+  .mode-icon svg { display: block; }
+  .mode-icon svg circle { transition: transform 320ms var(--bounce); transform-origin: center; transform-box: fill-box; }
   .mode-info { flex: 1; min-width: 0; }
   .mode-name {
     font-size: 24px;
@@ -1670,6 +1665,39 @@ function wordmarkHTML() {
   return WORDMARK.split('').map((ch, i) => `<span class="w w-${i + 1}">${ch}</span>`).join('');
 }
 
+// Mode-card icon — dice-face patterns per Appendix B of the V2 plan.
+// Inline SVG so the icon stays sharp at every DPR and remains theme-able
+// via CSS variables. Each dot fills with the actual palette colour for
+// that mode index, in the order defined in ALL_COLOURS. Drop shadow
+// matches the main-grid shadow scaled down (y=1, blur=2, opacity 0.10).
+const MODE_ICON_LAYOUTS = {
+  4: { positions: [[19,19],[45,19],[19,45],[45,45]],                                width: 64 },
+  5: { positions: [[15,15],[49,15],[15,49],[49,49],[32,32]],                        width: 64 },
+  6: { positions: [[19,12],[45,12],[19,32],[45,32],[19,52],[45,52]],                width: 64 },
+  7: { positions: [[12,15],[32,15],[52,15],[32,32],[12,49],[32,49],[52,49]],        width: 64 },
+  8: { positions: [[12,19],[28,19],[44,19],[60,19],[12,45],[28,45],[44,45],[60,45]], width: 72 }
+};
+
+function modeIconSVG(modeId) {
+  const mode = MODES[modeId];
+  const palette = coloursForMode(mode);
+  const layout = MODE_ICON_LAYOUTS[palette.length];
+  if (!layout) return '';
+  const filterId = `mi-shadow-${modeId}`;
+  const dots = layout.positions.map((p, i) => {
+    const fill = palette[i].rgb;
+    return `<circle cx="${p[0]}" cy="${p[1]}" r="7" fill="${fill}" filter="url(#${filterId})"/>`;
+  }).join('');
+  return `<svg width="${layout.width}" height="64" viewBox="0 0 ${layout.width} 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">` +
+         `<defs>` +
+         `<filter id="${filterId}" x="-50%" y="-50%" width="200%" height="200%">` +
+           `<feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#15110c" flood-opacity="0.10"/>` +
+         `</filter>` +
+         `</defs>` +
+         dots +
+         `</svg>`;
+}
+
 // ── Persistence ───────────────────────────────────────────
 function defaultModeStats() {
   return { played: 0, won: 0, streak: 0, bestStreak: 0, lastSolvedPuzzle: -2, distribution: [0,0,0,0,0,0,0,0] };
@@ -2149,8 +2177,7 @@ function renderModePanel() {
   const playedToday = t.gameOver;
   const failedToday = playedToday && !t.won;
 
-  const iconColours = coloursForMode(mode).slice(0, 6);
-  const iconHTML = iconColours.map(c => `<span style="background:${c.hex}"></span>`).join('');
+  const iconSVG = modeIconSVG(id);
 
   const xpEstimate = calculateXPGain(mode, 3, stats.streak + 1);
   const xpLine = solvedToday
@@ -2171,7 +2198,7 @@ function renderModePanel() {
   const panel = document.getElementById('modePanel');
   panel.innerHTML = `
     <div class="mode-panel-row">
-      <div class="mode-icon">${iconHTML}</div>
+      <div class="mode-icon ${mode.colours === 8 ? 'wide' : ''}">${iconSVG}</div>
       <div class="mode-info">
         <div class="mode-name">${mode.name}</div>
         <div class="mode-spec">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
