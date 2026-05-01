@@ -1395,73 +1395,6 @@
   }
   .share-action-btn.primary svg { stroke: var(--bg); }
 
-  /* ── Tutorial strip + post-tutorial nudge ───────────── */
-  .tutorial-strip {
-    text-align: center;
-    padding: 14px 16px 8px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ink);
-    line-height: 1.4;
-    transition: opacity 0.5s var(--ease);
-  }
-  .tutorial-strip .feedback-key {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin: 0 2px;
-  }
-  .tutorial-strip .key-dot {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 1px 2px rgba(20, 17, 12, 0.18);
-  }
-  .tutorial-strip .key-dot.correct { background: var(--fb-correct); }
-  .tutorial-strip .key-dot.misplaced { background: var(--fb-misplaced); }
-  .tutorial-strip.fade-out { opacity: 0; pointer-events: none; }
-  .tutorial-strip.swap { animation: tutorialSwap 0.45s var(--ease); }
-  @keyframes tutorialSwap {
-    0% { opacity: 0; transform: translateY(-4px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-
-  .home-nudge {
-    margin: 0 0 18px;
-    padding: 14px 18px;
-    background: linear-gradient(135deg, rgba(78, 156, 93, 0.14), rgba(216, 168, 46, 0.10));
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 0 0 1px rgba(78, 156, 93, 0.18);
-    animation: panelIn 480ms var(--ease);
-  }
-  .home-nudge-text {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: 0.2px;
-  }
-  .home-nudge-sub {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ink-soft);
-    margin-top: 2px;
-    letter-spacing: 0.2px;
-  }
-  .home-nudge-dismiss {
-    width: 28px; height: 28px;
-    border-radius: 999px;
-    background: rgba(20, 17, 12, 0.06);
-    color: var(--ink-soft);
-    flex-shrink: 0;
-    transition: background var(--duration-fast) var(--ease);
-  }
-  .home-nudge-dismiss:hover { background: rgba(20, 17, 12, 0.12); color: var(--ink); }
-
   /* Dev share preview */
   .devshare {
     position: fixed; inset: 0;
@@ -1709,22 +1642,10 @@ const state = {
   practiceActive: false,
   practiceState: null,
 
-  // First-visit tutorial (Section 6). The tutorial uses a fixed answer,
-  // grants no XP, no streak, and does not count toward today's daily
-  // completion. tutorialDone is persisted; tutorialActive / tutorialState
-  // are session-only.
-  tutorialActive: false,
-  tutorialState: null,
-  tutorialDone: false,
-
-  // Has the player completed at least one real (non-tutorial,
-  // non-practice) puzzle? Persisted so progression UI stays visible
+  // Has the player completed at least one real (non-practice,
+  // non-archive) puzzle? Persisted so progression UI stays visible
   // across sessions.
   firstRealSolveDone: false,
-
-  // Set briefly after the tutorial closes so the home view shows a
-  // one-time "Try Easy next?" nudge. Cleared once the home renders.
-  showPostTutorialNudge: false,
 
   // Streak freezes (Section 9). Earn 1 every 7 days of consecutive
   // play, cap at 3. Auto-consume on missed days. Persisted under
@@ -1738,13 +1659,10 @@ const state = {
   pendingFreezeToast: 0
 };
 
-// Tutorial puzzle: Beginner-mode rules (4 slots, 4 colours, 6 guesses)
-// with a fixed deterministic answer. The colour ids correspond to
-// red(1) green(4) orange(2) yellow(3) — chosen so a naive in-order guess
-// of [1,2,3,4] gives 1 correct + 3 misplaced, demonstrating both
-// feedback colours. Beginner's palette has no blue, so the spec example
-// "red-blue-yellow-green" is adapted to the 4-colour palette.
-const TUTORIAL_ANSWER = [1, 4, 2, 3];
+// Separate localStorage key for the one-time "How it works" auto-open.
+// Lives outside the hue.v2 JSON blob so it can't be accidentally
+// invalidated by a data-shape migration.
+const HOW_IT_WORKS_KEY = 'hue.v2.howItWorksShown';
 
 // ── Helpers ───────────────────────────────────────────────
 function coloursForMode(mode) {
@@ -1901,7 +1819,6 @@ function loadPersisted() {
     if (data.achievements && typeof data.achievements === 'object') state.achievements = data.achievements;
     if (typeof data.cb === 'boolean') state.cb = data.cb;
     if (data.history && typeof data.history === 'object') state.history = data.history;
-    if (typeof data.tutorialDone === 'boolean') state.tutorialDone = data.tutorialDone;
     if (typeof data.firstRealSolveDone === 'boolean') state.firstRealSolveDone = data.firstRealSolveDone;
     if (typeof data.streakFreezes === 'number') state.streakFreezes = Math.max(0, Math.min(3, data.streakFreezes | 0));
     if (typeof data.consecutivePlayDays === 'number') state.consecutivePlayDays = Math.max(0, data.consecutivePlayDays | 0);
@@ -2010,7 +1927,6 @@ function persist() {
       cb: state.cb,
       modeStats: state.modeStats,
       history: state.history,
-      tutorialDone: state.tutorialDone,
       firstRealSolveDone: state.firstRealSolveDone,
       streakFreezes: state.streakFreezes,
       consecutivePlayDays: state.consecutivePlayDays,
@@ -2109,16 +2025,15 @@ function initTodayState() {
 
 // ── Game actions ──────────────────────────────────────────
 function getCurrent() {
-  if (state.tutorialActive) return state.tutorialState;
   if (state.practiceActive) return state.practiceState;
   return state.todayState[state.currentMode];
 }
 function getMode() { return MODES[state.currentMode]; }
 
-// True once the player has completed at least one real (non-tutorial,
-// non-practice) puzzle. Section 6 hides the XP bar, level pill, streak
-// pill, and achievement entry point until this is true so the player
-// doesn't see "Level 1 — 0/100 XP" on first visit.
+// True once the player has completed at least one real (non-practice)
+// puzzle. Hides the XP bar, level pill, streak pill, and achievement
+// entry point until this is true so the player doesn't see
+// "Level 1 — 0/100 XP" on first visit.
 function hasHadRealSolve() {
   if (state.firstRealSolveDone) return true;
   // Legacy players who already played a real puzzle but never had this
@@ -2203,9 +2118,8 @@ function submitGuess() {
     } else if (isLast) {
       handleLoss();
     } else {
-      if (!state.practiceActive && !state.tutorialActive) persist();
+      if (!state.practiceActive) persist();
       renderGameControls();
-      updateTutorialStrip();
     }
   });
 }
@@ -2232,25 +2146,6 @@ function handleWin(rowIdx) {
       burstConfetti();
       openResultModal();
     }, 1400);
-    return;
-  }
-
-  if (state.tutorialActive) {
-    // Tutorial solve: no XP, no streak, no daily completion. Persist
-    // tutorialDone so subsequent visits skip the tutorial. Then drop
-    // the player on the home screen with the "Try Easy next?" nudge.
-    state.tutorialDone = true;
-    persist();
-    renderGameControls();
-    renderEndState();
-    setTimeout(() => {
-      burstConfetti();
-      state.tutorialActive = false;
-      state.tutorialState = null;
-      state.selectedMode = 'easy';
-      state.showPostTutorialNudge = true;
-      goHome();
-    }, 1600);
     return;
   }
 
@@ -2335,7 +2230,7 @@ function handleLoss() {
     rowEl.classList.add('shake');
   }
 
-  if (!state.practiceActive && !state.tutorialActive) {
+  if (!state.practiceActive) {
     const stats = state.modeStats[mode.id];
     stats.played++;
     stats.streak = 0;
@@ -2363,35 +2258,6 @@ function animateRowFeedback(rowIdx) {
       }, i * REVEAL_STAGGER);
     });
   });
-}
-
-// Tutorial captions per Section 6:
-//   start  → "Tap colours to fill the row, then submit."
-//   1 guess → green/amber feedback explanation
-//   2 guesses → fade out, no caption
-function tutorialCaption() {
-  if (!state.tutorialActive) return null;
-  const t = state.tutorialState;
-  const n = t.guesses.length;
-  if (n === 0) return 'Tap colours to fill the row, then submit.';
-  if (n === 1) return 'Green = right colour, right slot. Amber = right colour, wrong slot.';
-  return null;
-}
-
-function updateTutorialStrip() {
-  if (!state.tutorialActive) return;
-  const strip = document.getElementById('tutorialStrip');
-  if (!strip) return;
-  const cap = tutorialCaption();
-  if (!cap) {
-    strip.classList.add('fade-out');
-    return;
-  }
-  strip.classList.remove('fade-out');
-  strip.classList.remove('swap');
-  void strip.offsetWidth; // restart animation
-  strip.classList.add('swap');
-  strip.textContent = cap;
 }
 
 function flashRow() {
@@ -2531,20 +2397,6 @@ function renderHome() {
     ? `<div class="xp-summary">LV ${xpProg.level} — ${xpToNext} XP to LV ${xpProg.level + 1}</div>`
     : '';
 
-  // Post-tutorial nudge — shown once after the first-visit tutorial
-  // completes. Cleared on render so it doesn't persist across reloads
-  // or repeat home renders within the same session.
-  const nudgeHTML = state.showPostTutorialNudge
-    ? `<div class="home-nudge" id="homeNudge">
-         <div>
-           <div class="home-nudge-text">Tutorial complete</div>
-           <div class="home-nudge-sub">Try Easy next?</div>
-         </div>
-         <button class="home-nudge-dismiss" id="homeNudgeDismiss" aria-label="Dismiss">×</button>
-       </div>`
-    : '';
-  state.showPostTutorialNudge = false;
-
   main.innerHTML = `
     <div class="home">
       <div class="home-header">
@@ -2553,8 +2405,6 @@ function renderHome() {
         ${streakHTML}
         ${xpSummaryHTML}
       </div>
-
-      ${nudgeHTML}
 
       <div class="difficulty">
         <div class="seg" id="seg" role="tablist" aria-label="Difficulty">
@@ -2592,14 +2442,6 @@ function renderHome() {
       renderHome();
     };
   });
-
-  const nudgeDismiss = document.getElementById('homeNudgeDismiss');
-  if (nudgeDismiss) {
-    nudgeDismiss.onclick = () => {
-      const nudge = document.getElementById('homeNudge');
-      if (nudge) nudge.remove();
-    };
-  }
 
   positionSegIndicator();
   renderModePanel();
@@ -2674,29 +2516,6 @@ function enterMode(id) {
   state.selectedMode = id;
   state.practiceActive = false;
   state.practiceState = null;
-  state.tutorialActive = false;
-  state.tutorialState = null;
-  renderApp();
-}
-
-// First-visit tutorial. Beginner-mode rules with a fixed deterministic
-// answer. No XP, no streak, never persisted to today's modeStats.
-function startTutorial() {
-  state.view = 'game';
-  state.currentMode = 'beginner';
-  state.selectedMode = 'beginner';
-  state.tutorialActive = true;
-  state.practiceActive = false;
-  state.practiceState = null;
-  state.tutorialState = {
-    answer: TUTORIAL_ANSWER.slice(),
-    guesses: [],
-    currentGuess: [],
-    gameOver: false,
-    won: false,
-    busy: false,
-    xpEarned: 0
-  };
   renderApp();
 }
 
@@ -2725,8 +2544,6 @@ function goHome() {
   state.currentMode = null;
   state.practiceActive = false;
   state.practiceState = null;
-  state.tutorialActive = false;
-  state.tutorialState = null;
   renderApp();
 }
 
@@ -2734,14 +2551,11 @@ function goHome() {
 function renderGame() {
   const mode = getMode();
   const main = document.getElementById('main');
-  const headerHTML = state.tutorialActive
-    ? `<div class="tutorial-strip" id="tutorialStrip">${tutorialCaption() || ''}</div>`
-    : `<div class="game-header">
-         <div class="game-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
-         <div class="game-mode-label">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
-       </div>`;
   main.innerHTML = `
-    ${headerHTML}
+    <div class="game-header">
+      <div class="game-puzzle-num">Puzzle No. ${state.puzzleNum}</div>
+      <div class="game-mode-label">${mode.slots} slots · ${mode.colours} colours · ${mode.maxGuesses} guesses</div>
+    </div>
     <div class="board" id="board"></div>
     <div class="end-banner" id="endBanner"></div>
     <section class="palette-wrap"><div class="palette" id="palette"></div></section>
@@ -3772,11 +3586,11 @@ function setupSettings() {
     state.totalXP = 0;
     state.achievements = {};
     state.history = {};
-    state.tutorialDone = false;
     state.firstRealSolveDone = false;
     state.streakFreezes = 0;
     state.consecutivePlayDays = 0;
     state.lastPlayedPuzzle = -2;
+    try { localStorage.removeItem(HOW_IT_WORKS_KEY); } catch {}
     MODE_ORDER.forEach(id => state.modeStats[id] = defaultModeStats());
     initTodayState();
     persist();
@@ -3838,18 +3652,22 @@ function init() {
   setupSettings();
   setupKeyboard();
 
-  // Section 6: first-visit detection. If there's no hue.v2 key in
-  // localStorage the player is brand new — route them straight into
-  // the Beginner-mode tutorial puzzle, bypassing the difficulty
-  // selector. Existing players (any hue.v2 entry, even from V1) skip
-  // the tutorial.
+  renderApp();
+
+  // First-visit onboarding: if hue.v2 is empty AND we haven't yet
+  // auto-shown "How it works", open it once. The flag is set the
+  // moment the modal appears so a hard reload doesn't re-trigger it.
+  // The player can re-open via the ? icon at any time.
   let firstVisit = false;
   try { firstVisit = !localStorage.getItem(STORAGE_KEY); } catch {}
+  let howItWorksShown = false;
+  try { howItWorksShown = localStorage.getItem(HOW_IT_WORKS_KEY) === '1'; } catch {}
 
-  if (firstVisit && !state.tutorialDone) {
-    startTutorial();
-  } else {
-    renderApp();
+  if (firstVisit && !howItWorksShown) {
+    setTimeout(() => {
+      openModal('modalHowTo');
+      try { localStorage.setItem(HOW_IT_WORKS_KEY, '1'); } catch {}
+    }, 350);
   }
 
   // Section 9: one-time toast on auto-consumed freeze. Persist the
