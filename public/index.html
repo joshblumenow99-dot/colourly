@@ -259,6 +259,25 @@
   }
   .streak-num { font-variant-numeric: tabular-nums; }
 
+  /* Frosted-dot freeze indicator — Section 9 */
+  .freeze-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(20, 17, 12, 0.10);
+  }
+  .freeze-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e6efff, #b6c8e6);
+    box-shadow:
+      0 0 5px rgba(180, 200, 230, 0.55),
+      inset 0 1px 0 rgba(255,255,255,0.85),
+      inset 0 -1px 0 rgba(120, 140, 180, 0.25);
+  }
+
   /* Difficulty segmented control */
   .difficulty {
     margin: 4px 0 24px;
@@ -1607,7 +1626,18 @@ const state = {
 
   // Set briefly after the tutorial closes so the home view shows a
   // one-time "Try Easy next?" nudge. Cleared once the home renders.
-  showPostTutorialNudge: false
+  showPostTutorialNudge: false,
+
+  // Streak freezes (Section 9). Earn 1 every 7 days of consecutive
+  // play, cap at 3. Auto-consume on missed days. Persisted under
+  // hue.v2.streakFreezes alongside the existing data.
+  streakFreezes: 0,
+  consecutivePlayDays: 0,
+  lastPlayedPuzzle: -2,
+
+  // Transient: count of freezes consumed in this load. The home view
+  // surfaces a one-time "Streak saved — N freeze(s) used" toast if non-zero.
+  pendingFreezeToast: 0
 };
 
 // Tutorial puzzle: Beginner-mode rules (4 slots, 4 colours, 6 guesses)
@@ -1775,6 +1805,9 @@ function loadPersisted() {
     if (data.history && typeof data.history === 'object') state.history = data.history;
     if (typeof data.tutorialDone === 'boolean') state.tutorialDone = data.tutorialDone;
     if (typeof data.firstRealSolveDone === 'boolean') state.firstRealSolveDone = data.firstRealSolveDone;
+    if (typeof data.streakFreezes === 'number') state.streakFreezes = Math.max(0, Math.min(3, data.streakFreezes | 0));
+    if (typeof data.consecutivePlayDays === 'number') state.consecutivePlayDays = Math.max(0, data.consecutivePlayDays | 0);
+    if (typeof data.lastPlayedPuzzle === 'number') state.lastPlayedPuzzle = data.lastPlayedPuzzle;
     if (data.modeStats && typeof data.modeStats === 'object') {
       MODE_ORDER.forEach(id => {
         if (data.modeStats[id]) {
@@ -1805,6 +1838,11 @@ function loadPersisted() {
     }
   } catch (e) { console.warn('Colourly: storage read failed', e); }
 
+  // Section 9: streak freezes. Auto-consume on missed days. Runs BEFORE
+  // the per-mode streak-reset check so a successful freeze can preserve
+  // each mode's streak by bumping its lastSolvedPuzzle to puzzleNum - 1.
+  applyMissedDayFreezes();
+
   MODE_ORDER.forEach(id => {
     const s = state.modeStats[id];
     if (s.lastSolvedPuzzle !== state.puzzleNum &&
@@ -1813,6 +1851,57 @@ function loadPersisted() {
       s.streak = 0;
     }
   });
+}
+
+// Returns the most recent puzzle number across all modes (or -2 if
+// the player has never solved anything).
+function maxLastSolvedPuzzle() {
+  let max = -2;
+  MODE_ORDER.forEach(id => {
+    if (state.modeStats[id].lastSolvedPuzzle > max) max = state.modeStats[id].lastSolvedPuzzle;
+  });
+  return max;
+}
+
+// Section 9: when load detects N missed days, consume up to N freezes
+// to preserve the global streak. If freezes are sufficient, bump every
+// active mode's lastSolvedPuzzle to puzzleNum - 1 so the existing
+// per-mode reset doesn't fire and the next solve increments cleanly.
+// If freezes are insufficient, partially consume (don't hoard) and
+// let the streak break.
+function applyMissedDayFreezes() {
+  const maxLast = maxLastSolvedPuzzle();
+  if (maxLast < 1) return;                   // never played — nothing to protect
+  const daysSinceLast = state.puzzleNum - maxLast;
+  if (daysSinceLast <= 1) return;            // played today or yesterday — fine
+  const daysMissed = daysSinceLast - 1;      // days with zero solves between then and today
+
+  if (state.streakFreezes >= daysMissed) {
+    // Freezes cover all missed days — streak survives.
+    state.streakFreezes -= daysMissed;
+    state.pendingFreezeToast = (state.pendingFreezeToast || 0) + daysMissed;
+    MODE_ORDER.forEach(id => {
+      const s = state.modeStats[id];
+      // Only bump modes that actually had an active streak — preserves
+      // the meaning of per-mode streak (consecutive days of THAT mode).
+      if (s.streak > 0 && s.lastSolvedPuzzle > 0) {
+        s.lastSolvedPuzzle = state.puzzleNum - 1;
+      }
+    });
+    // The global "consecutive play days" counter survives with no
+    // increment — only an actual solve advances it.
+  } else {
+    // Insufficient freezes: spec says "first freeze auto-consumes for
+    // day 1, no freeze available for day 2, streak breaks normally".
+    // So we still consume the freezes we have, but the streak breaks.
+    if (state.streakFreezes > 0) {
+      state.pendingFreezeToast = (state.pendingFreezeToast || 0) + state.streakFreezes;
+      state.streakFreezes = 0;
+    }
+    state.consecutivePlayDays = 0;
+    // Per-mode streak reset is handled by the existing logic below in
+    // loadPersisted (lastSolvedPuzzle stays old → streak goes to 0).
+  }
 }
 
 function persist() {
@@ -1825,6 +1914,9 @@ function persist() {
       history: state.history,
       tutorialDone: state.tutorialDone,
       firstRealSolveDone: state.firstRealSolveDone,
+      streakFreezes: state.streakFreezes,
+      consecutivePlayDays: state.consecutivePlayDays,
+      lastPlayedPuzzle: state.lastPlayedPuzzle,
       todayState: {
         puzzleNum: state.puzzleNum,
         modes: {}
@@ -2073,6 +2165,21 @@ function handleWin(rowIdx) {
   stats.lastSolvedPuzzle = state.puzzleNum;
   if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
 
+  // Section 9: track global consecutive-play-days and award a freeze
+  // every 7 days, cap 3. This is the only path that grants freezes —
+  // they cannot be purchased or earned any other way.
+  if (state.lastPlayedPuzzle !== state.puzzleNum) {
+    if (state.lastPlayedPuzzle === state.puzzleNum - 1) {
+      state.consecutivePlayDays += 1;
+    } else {
+      state.consecutivePlayDays = 1;
+    }
+    state.lastPlayedPuzzle = state.puzzleNum;
+    if (state.consecutivePlayDays > 0 && state.consecutivePlayDays % 7 === 0 && state.streakFreezes < 3) {
+      state.streakFreezes += 1;
+    }
+  }
+
   const xpGain = calculateXPGain(mode, rowIdx + 1, stats.streak);
   t.xpEarned = xpGain;
   state.totalXP += xpGain;
@@ -2282,8 +2389,13 @@ function renderHome() {
     : `<span class="streak-num">${maxStreak}</span>-day streak`;
   const streakIcon = hot ? '🔥' : (maxStreak > 0 ? '🔥' : '');
   const showProgression = hasHadRealSolve();
+  const freezeDotsHTML = state.streakFreezes > 0
+    ? `<span class="freeze-dots" aria-label="${state.streakFreezes} streak ${state.streakFreezes === 1 ? 'freeze' : 'freezes'}">` +
+      Array(state.streakFreezes).fill('<span class="freeze-dot"></span>').join('') +
+      `</span>`
+    : '';
   const streakHTML = showProgression
-    ? `<div class="home-streak ${streakClass}">${streakIcon ? streakIcon + ' ' : ''}${streakLabel}</div>`
+    ? `<div class="home-streak ${streakClass}">${streakIcon ? streakIcon + ' ' : ''}${streakLabel}${freezeDotsHTML}</div>`
     : '';
 
   // Post-tutorial nudge — shown once after the first-visit tutorial
@@ -3519,6 +3631,9 @@ function setupSettings() {
     state.history = {};
     state.tutorialDone = false;
     state.firstRealSolveDone = false;
+    state.streakFreezes = 0;
+    state.consecutivePlayDays = 0;
+    state.lastPlayedPuzzle = -2;
     MODE_ORDER.forEach(id => state.modeStats[id] = defaultModeStats());
     initTodayState();
     persist();
@@ -3592,6 +3707,20 @@ function init() {
     startTutorial();
   } else {
     renderApp();
+  }
+
+  // Section 9: one-time toast on auto-consumed freeze. Persist the
+  // updated count so a reload doesn't show the toast a second time.
+  if (state.pendingFreezeToast > 0) {
+    const n = state.pendingFreezeToast;
+    state.pendingFreezeToast = 0;
+    persist();
+    setTimeout(() => {
+      const msg = n === 1
+        ? 'Streak saved — 1 freeze used.'
+        : `Streak saved — ${n} freezes used.`;
+      showToast(msg, 3200);
+    }, 600);
   }
 
   // Auto-roll at local midnight
